@@ -4,21 +4,14 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "filelock-lts-py37"
-# YOUR VERSIONING SCHEME:
 version = "2025.68146"
-description = "LTS patch for filelock (CVE-2025-68146) on Python 3.7. Replaces original filelock==3.12.2."
+description = "LTS patch for filelock (CVE-2025-68146) on Python 3.7. Replaces original filelock."
 readme = "README.md"
 requires-python = "==3.7.*"
 license = { text = "Unlicense" }
 
-[project.conflicts]
-# This is the critical directive to remove the old version.
-filelock = "*"
-
 [project.urls]
 Homepage = "https://github.com/1minds3t/filelock-lts"
-"Security Advisory" = "https://nvd.nist.gov/vuln/detail/CVE-2025-68146"
-"Original Source" = "https://pypi.org/project/filelock/3.12.2/"
 
 [tool.setuptools.packages.find]
 where = ["src"]
