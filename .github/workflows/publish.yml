@@ -21,7 +21,7 @@ jobs:
     environment: pypi
     
     steps:
-    - name: Checkout code
+    - name: Checkout the TAG (not main)
       uses: actions/checkout@v4
       with:
         ref: ${{ github.event.inputs.tag || github.ref }}
@@ -41,7 +41,7 @@ jobs:
         EXPECTED_VERSION=${TAG_NAME#CVE-}
         
         if [ "$PACKAGE_VERSION" != "$EXPECTED_VERSION" ]; then
-          echo "::error::Version mismatch!"
+          echo "::error::Version mismatch! pyproject.toml has $PACKAGE_VERSION but expected $EXPECTED_VERSION"
           exit 1
         fi
         
