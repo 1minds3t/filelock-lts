@@ -18,8 +18,6 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    container:
-      image: python:3.7-slim
     environment: pypi
     
     steps:
@@ -28,12 +26,19 @@ jobs:
       with:
         ref: ${{ github.event.inputs.tag || github.ref }}
       
-    - name: Install dependencies
-      run: python -m pip install --upgrade pip build tomli
+    - name: Set up Python 3.7 using Docker
+      run: |
+        docker pull python:3.7-slim
+        docker create --name py37builder -v $PWD:/workspace -w /workspace python:3.7-slim tail -f /dev/null
+        docker start py37builder
+        
+    - name: Install dependencies in container
+      run: |
+        docker exec py37builder python -m pip install --upgrade pip build tomli
         
     - name: Verify package version matches Git Tag
       run: |
-        PACKAGE_VERSION=$(python -c "import tomli; print(tomli.load(open('pyproject.toml', 'rb'))['project']['version'])")
+        PACKAGE_VERSION=$(docker exec py37builder python -c "import tomli; print(tomli.load(open('pyproject.toml', 'rb'))['project']['version'])")
         TAG_NAME="${{ github.event.inputs.tag || github.ref_name }}"
         EXPECTED_VERSION=${TAG_NAME#CVE-}
         
@@ -42,8 +47,11 @@ jobs:
           exit 1
         fi
         
-    - name: Build package (wheel + sdist)
-      run: python -m build
+    - name: Build package in container
+      run: docker exec py37builder python -m build
+      
+    - name: Stop container
+      run: docker stop py37builder && docker rm py37builder
       
     - name: Publish to PyPI
       uses: pypa/gh-action-pypi-publish@release/v1
