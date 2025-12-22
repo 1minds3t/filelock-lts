@@ -36,11 +36,22 @@ jobs:
       run: |
         docker exec py37builder python -m pip install --upgrade pip build tomli
         
+    - name: Verify pyproject.toml exists and show version
+      run: |
+        echo "=== Checking pyproject.toml ==="
+        docker exec py37builder cat pyproject.toml | grep version
+        docker exec py37builder python -c "import tomli; data = tomli.load(open('pyproject.toml', 'rb')); print('Project data:', data); print('Version:', data['project']['version'])"
+        
     - name: Verify package version matches Git Tag
       run: |
         PACKAGE_VERSION=$(docker exec py37builder python -c "import tomli; print(tomli.load(open('pyproject.toml', 'rb'))['project']['version'])")
         TAG_NAME="${{ github.event.inputs.tag || github.ref_name }}"
         EXPECTED_VERSION=${TAG_NAME#CVE-}
+        EXPECTED_VERSION=${EXPECTED_VERSION//-/.}
+        
+        echo "Package version: $PACKAGE_VERSION"
+        echo "Tag name: $TAG_NAME"
+        echo "Expected version: $EXPECTED_VERSION"
         
         if [ "$PACKAGE_VERSION" != "$EXPECTED_VERSION" ]; then
           echo "::error::Version mismatch! pyproject.toml has $PACKAGE_VERSION but expected $EXPECTED_VERSION"
