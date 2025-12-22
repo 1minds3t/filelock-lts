@@ -1,0 +1,49 @@
+name: Publish filelock-lts-py37 to PyPI
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  id-token: write # Required for OIDC passwordless publishing
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    # This links the job to the GitHub Environment you created
+    environment: pypi
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python 3.7
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.7'
+        
+    - name: Install dependencies for build and version check
+      run: python -m pip install --upgrade pip build tomli
+        
+    - name: Verify package version matches Git Tag
+      run: |
+        PACKAGE_VERSION=$(python -c "import tomli; print(tomli.load(open('pyproject.toml', 'rb'))['project']['version'])")
+        TAG_NAME="${{ github.ref_name }}"
+        
+        # Transform the Git tag (e.g., "CVE-2025-68146") into the PyPI version ("2025.68146")
+        EXPECTED_VERSION=${TAG_NAME#CVE-}
+        
+        echo "Version in pyproject.toml: $PACKAGE_VERSION"
+        echo "Version from Git Tag:      $EXPECTED_VERSION"
+        
+        if [ "$PACKAGE_VERSION" != "$EXPECTED_VERSION" ]; then
+          echo "::error::Version mismatch! The version in pyproject.toml ($PACKAGE_VERSION) must match the version from the Git tag ($EXPECTED_VERSION)."
+          exit 1
+        fi
+        
+    - name: Build package
+      run: python -m build
+        
+    - name: Publish package to PyPI
+      uses: pypa/gh-action-pypi-publish@release/v1
+      # No password/token needed! OIDC handles it automatically.
