@@ -1,8 +1,6 @@
 name: Publish filelock-lts-py37 to PyPI
 
 on:
-  release:
-    types: [published]
   workflow_dispatch:
     inputs:
       tag:
@@ -21,11 +19,17 @@ jobs:
     environment: pypi
     
     steps:
-    - name: Checkout the TAG (not main)
+    - name: Checkout repository
       uses: actions/checkout@v4
       with:
-        ref: ${{ github.event.inputs.tag || github.ref }}
+        fetch-depth: 0
       
+    - name: Checkout the specific tag
+      run: |
+        git checkout tags/${{ github.event.inputs.tag }}
+        echo "=== Verifying we have the right code ==="
+        cat pyproject.toml | head -20
+        
     - name: Set up Python 3.7 using Docker
       run: |
         docker pull python:3.7-slim
@@ -36,25 +40,18 @@ jobs:
       run: |
         docker exec py37builder python -m pip install --upgrade pip build tomli
         
-    - name: Verify pyproject.toml exists and show version
-      run: |
-        echo "=== Checking pyproject.toml ==="
-        docker exec py37builder cat pyproject.toml | grep version
-        docker exec py37builder python -c "import tomli; data = tomli.load(open('pyproject.toml', 'rb')); print('Project data:', data); print('Version:', data['project']['version'])"
-        
     - name: Verify package version matches Git Tag
       run: |
         PACKAGE_VERSION=$(docker exec py37builder python -c "import tomli; print(tomli.load(open('pyproject.toml', 'rb'))['project']['version'])")
-        TAG_NAME="${{ github.event.inputs.tag || github.ref_name }}"
+        TAG_NAME="${{ github.event.inputs.tag }}"
         EXPECTED_VERSION=${TAG_NAME#CVE-}
         EXPECTED_VERSION=${EXPECTED_VERSION//-/.}
         
         echo "Package version: $PACKAGE_VERSION"
-        echo "Tag name: $TAG_NAME"
         echo "Expected version: $EXPECTED_VERSION"
         
         if [ "$PACKAGE_VERSION" != "$EXPECTED_VERSION" ]; then
-          echo "::error::Version mismatch! pyproject.toml has $PACKAGE_VERSION but expected $EXPECTED_VERSION"
+          echo "::error::Version mismatch!"
           exit 1
         fi
         
