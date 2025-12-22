@@ -5,7 +5,7 @@ on:
     types: [published]
 
 permissions:
-  id-token: write # Required for passwordless (OIDC) publishing
+  id-token: write
 
 jobs:
   deploy:
@@ -31,12 +31,12 @@ jobs:
         EXPECTED_VERSION=${TAG_NAME#CVE-}
         
         if [ "$PACKAGE_VERSION" != "$EXPECTED_VERSION" ]; then
-          echo "::error::Version mismatch in pyproject.toml! Expected $EXPECTED_VERSION but found $PACKAGE_VERSION."
+          echo "::error::Version mismatch!"
           exit 1
         fi
         
     - name: Build package
       run: python -m build
-        
-    - name: Publish package to PyPI
+      
+    - name: Publish to PyPI
       uses: pypa/gh-action-pypi-publish@release/v1
