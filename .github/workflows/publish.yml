@@ -3,6 +3,14 @@ name: Publish filelock-lts-py37 to PyPI
 on:
   release:
     types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Select tag to publish'
+        required: true
+        type: choice
+        options:
+          - CVE-2025-68146
 
 permissions:
   id-token: write
@@ -15,6 +23,8 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        ref: ${{ github.event.inputs.tag || github.ref }}
       
     - name: Set up Python 3.7
       uses: actions/setup-python@v5
@@ -27,7 +37,7 @@ jobs:
     - name: Verify package version matches Git Tag
       run: |
         PACKAGE_VERSION=$(python -c "import tomli; print(tomli.load(open('pyproject.toml', 'rb'))['project']['version'])")
-        TAG_NAME="${{ github.ref_name }}"
+        TAG_NAME="${{ github.event.inputs.tag || github.ref_name }}"
         EXPECTED_VERSION=${TAG_NAME#CVE-}
         
         if [ "$PACKAGE_VERSION" != "$EXPECTED_VERSION" ]; then
