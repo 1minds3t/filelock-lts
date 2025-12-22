@@ -5,7 +5,7 @@ on:
     types: [published]
 
 permissions:
-  id-token: write # Required for OIDC passwordless publishing
+  id-token: write # Required for passwordless (OIDC) publishing
 
 jobs:
   deploy:
@@ -22,7 +22,7 @@ jobs:
       with:
         python-version: '3.7'
         
-    - name: Install dependencies for build and version check
+    - name: Install dependencies
       run: python -m pip install --upgrade pip build tomli
         
     - name: Verify package version matches Git Tag
@@ -30,14 +30,11 @@ jobs:
         PACKAGE_VERSION=$(python -c "import tomli; print(tomli.load(open('pyproject.toml', 'rb'))['project']['version'])")
         TAG_NAME="${{ github.ref_name }}"
         
-        # Transform the Git tag (e.g., "CVE-2025-68146") into the PyPI version ("2025.68146")
+        # Transform tag (e.g., "CVE-2025-68146") into PyPI version ("2025.68146")
         EXPECTED_VERSION=${TAG_NAME#CVE-}
         
-        echo "Version in pyproject.toml: $PACKAGE_VERSION"
-        echo "Version from Git Tag:      $EXPECTED_VERSION"
-        
         if [ "$PACKAGE_VERSION" != "$EXPECTED_VERSION" ]; then
-          echo "::error::Version mismatch! The version in pyproject.toml ($PACKAGE_VERSION) must match the version from the Git tag ($EXPECTED_VERSION)."
+          echo "::error::Version in pyproject.toml ($PACKAGE_VERSION) must match the Git tag ($EXPECTED_VERSION)."
           exit 1
         fi
         
@@ -46,4 +43,3 @@ jobs:
         
     - name: Publish package to PyPI
       uses: pypa/gh-action-pypi-publish@release/v1
-      # No password/token needed! OIDC handles it automatically.
