@@ -2,6 +2,7 @@ name: Publish filelock-lts-py37 to PyPI
 on:
   release:
     types: [published]
+  workflow_dispatch:
 permissions:
   id-token: write
 jobs:
@@ -12,6 +13,8 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        ref: ${{ github.event.release.tag_name }}
       
     - name: Set up Docker build container for Python 3.7
       run: |
