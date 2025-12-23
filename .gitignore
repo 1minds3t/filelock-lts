@@ -16,3 +16,19 @@ venv*
 .python-version
 test.lock
 test.softlock
+
+# Virtual environments
+.venv*/
+venv/
+ENV/
+env/
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
