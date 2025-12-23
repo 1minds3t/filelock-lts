@@ -3,11 +3,6 @@ on:
   release:
     types: [published]
   workflow_dispatch:
-    inputs:
-      tag:
-        description: 'Tag to build and publish'
-        required: true
-        type: string
 permissions:
   id-token: write
 jobs:
@@ -19,7 +14,15 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       with:
-        ref: ${{ github.event.release.tag_name || inputs.tag }}
+        fetch-tags: true
+        fetch-depth: 0
+    
+    - name: Checkout the tag
+      run: |
+        git fetch --tags
+        TAG=$(git tag | head -1)
+        echo "Checking out tag: $TAG"
+        git checkout $TAG
       
     - name: Set up Docker build container for Python 3.7
       run: |
@@ -32,7 +35,7 @@ jobs:
     - name: Verify package version matches Git Tag
       run: |
         PACKAGE_VERSION=$(grep '^version = ' pyproject.toml | cut -d'"' -f2)
-        TAG_NAME="${{ github.event.release.tag_name || inputs.tag }}"
+        TAG_NAME=$(git tag | head -1)
         EXPECTED_VERSION=${TAG_NAME#CVE-}
         
         echo "Version in pyproject.toml: $PACKAGE_VERSION"
