@@ -14,17 +14,24 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       
+    - name: Debug pyproject.toml line 15
+      run: |
+        echo "=== Showing line 15 with visible characters ==="
+        sed -n '15p' pyproject.toml | cat -A
+        echo "=== Full pyproject.toml content ==="
+        cat -n pyproject.toml
+      
     - name: Set up Docker build container for Python 3.7
       run: |
         docker pull python:3.7-slim
         docker run -d --name py37builder -v $PWD:/workspace -w /workspace python:3.7-slim tail -f /dev/null
         
     - name: Install dependencies in container
-      run: docker exec py37builder python -m pip install --upgrade pip build toml
+      run: docker exec py37builder python -m pip install --upgrade pip build
         
-    - name: Verify package version matches Git Tag
+    - name: Verify package version matches Git Tag using grep
       run: |
-        PACKAGE_VERSION=$(docker exec py37builder python -c "import toml; print(toml.load('pyproject.toml')['project']['version'])")
+        PACKAGE_VERSION=$(grep -Po '(?<=version = ")[^"]*' pyproject.toml)
         TAG_NAME="${{ github.ref_name }}"
         EXPECTED_VERSION=${TAG_NAME#CVE-}
         
