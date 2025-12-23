@@ -37,6 +37,7 @@ jobs:
         PACKAGE_VERSION=$(grep '^version = ' pyproject.toml | cut -d'"' -f2)
         TAG_NAME=$(git tag | head -1)
         EXPECTED_VERSION=${TAG_NAME#CVE-}
+        EXPECTED_VERSION=${EXPECTED_VERSION//-/.}
         
         echo "Version in pyproject.toml: $PACKAGE_VERSION"
         echo "Version from Git Tag ('$TAG_NAME'): $EXPECTED_VERSION"
