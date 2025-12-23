@@ -25,16 +25,20 @@ jobs:
           PY_VERSION="${{ github.event.inputs.python_version }}"
           BRANCH="py${PY_VERSION}"
         else
-          # Extract from release target (branch name)
-          BRANCH="${{ github.event.release.target_commitish }}"
+          # Extract from release tag name (CVE-2025-68146-py37 -> 3.7)
+          TAG_NAME="${{ github.event.release.tag_name }}"
           
-          # Extract Python version from branch name (py3.7 -> 3.7)
-          if [[ "$BRANCH" =~ py([0-9]+\.[0-9]+) ]]; then
+          if [[ "$TAG_NAME" =~ -py([0-9])([0-9]+)$ ]]; then
+            # Tag format: CVE-2025-68146-py37 -> 3.7
+            PY_VERSION="${BASH_REMATCH[1]}.${BASH_REMATCH[2]}"
+            BRANCH="py${PY_VERSION}"
+          elif [[ "$TAG_NAME" =~ py([0-9]+\.[0-9]+) ]]; then
+            # Tag format: py3.7 or release-py3.7
             PY_VERSION="${BASH_REMATCH[1]}"
-          elif [[ "$BRANCH" =~ ([0-9]+\.[0-9]+) ]]; then
-            PY_VERSION="${BASH_REMATCH[1]}"
+            BRANCH="py${PY_VERSION}"
           else
-            echo "::error::Could not determine Python version from branch: $BRANCH"
+            echo "::error::Could not determine Python version from tag: $TAG_NAME"
+            echo "::error::Expected tag format: CVE-2025-68146-py37 or similar"
             exit 1
           fi
         fi
@@ -48,7 +52,7 @@ jobs:
       with:
         ref: ${{ steps.python_info.outputs.branch }}
         fetch-depth: 0
-      
+    
     - name: Set up Docker build container
       run: |
         PY_VERSION="${{ steps.python_info.outputs.version }}"
@@ -58,10 +62,10 @@ jobs:
           -w /workspace \
           python:${PY_VERSION}-slim \
           tail -f /dev/null
-        
+    
     - name: Install build dependencies
       run: docker exec pybuilder python -m pip install --upgrade pip build
-        
+    
     - name: Verify package metadata
       run: |
         PACKAGE_NAME=$(grep '^name = ' pyproject.toml | cut -d'"' -f2)
@@ -77,22 +81,22 @@ jobs:
         if [[ ! "$PACKAGE_NAME" =~ $EXPECTED_SUFFIX ]]; then
           echo "::warning::Package name ($PACKAGE_NAME) doesn't contain expected suffix ($EXPECTED_SUFFIX)"
         fi
-        
+    
     - name: Build distributions
       run: docker exec pybuilder python -m build
-      
+    
     - name: List built packages
       run: ls -lh dist/
-      
+    
     - name: Stop and remove container
       if: always()
       run: docker stop pybuilder && docker rm pybuilder
-      
+    
     - name: Publish to PyPI
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
         skip-existing: true
-
+    
     - name: Summary
       run: |
         echo "### 🎉 Published to PyPI" >> $GITHUB_STEP_SUMMARY
