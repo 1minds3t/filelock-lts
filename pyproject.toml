@@ -5,13 +5,12 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "filelock-lts"
 version = "2025.68146"
-description = "LTS security patches for the filelock library. Auto-installs the correct patched version for your Python."
+description = "LTS security patches for filelock. Auto-installs the correct version for your Python."
 requires-python = ">=3.7, <3.10"
-license = { text = "Unlicense" }
+license = {text = "Unlicense"}
 readme = "README.md"
 
 [project.dependencies]
-# Auto-dispatch to correct Python version
 filelock-lts-py37 = {version = "==2025.68146", markers = "python_version == '3.7'"}
 filelock-lts-py38 = {version = "==2025.68146", markers = "python_version == '3.8'"}
 filelock-lts-py39 = {version = "==2025.68146", markers = "python_version == '3.9'"}
