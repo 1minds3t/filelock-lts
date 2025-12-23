@@ -1,15 +1,12 @@
 name: Publish filelock-lts-py37 to PyPI
 
 on:
-  # 1. Triggered automatically when a release is published
   release:
     types: [published]
-  
-  # 2. Allows you to trigger it manually from the Actions tab
   workflow_dispatch:
 
 permissions:
-  id-token: write # Required for passwordless (OIDC) publishing
+  id-token: write
 
 jobs:
   deploy:
@@ -20,24 +17,19 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       
-    - name: Set up Python 3.7
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.7'
+    - name: Set up Docker build container for Python 3.7
+      run: |
+        docker pull python:3.7-slim
+        docker create --name py37builder -v $PWD:/workspace -w /workspace python:3.7-slim tail -f /dev/null
+        docker start py37builder
         
-    - name: Install dependencies
-      run: python -m pip install --upgrade pip build tomli
+    - name: Install dependencies in container
+      run: docker exec py37builder python -m pip install --upgrade pip build tomli
         
     - name: Verify package version matches Git Tag
       run: |
-        PACKAGE_VERSION=$(python -c "import tomli; print(tomli.load(open('pyproject.toml', 'rb'))['project']['version'])")
-        
-        # This logic now correctly handles BOTH triggers:
-        # - For a 'release', it uses the tag of the release.
-        # - For a 'workflow_dispatch', it uses the tag of the current commit.
+        PACKAGE_VERSION=$(docker exec py37builder python -c "import tomli; print(tomli.load(open('pyproject.toml', 'rb'))['project']['version'])")
         TAG_NAME="${{ github.ref_name }}"
-        
-        # Transform the Git tag (e.g., "CVE-2025-68146") into the PyPI version ("2025.68146")
         EXPECTED_VERSION=${TAG_NAME#CVE-}
         
         echo "Version in pyproject.toml: $PACKAGE_VERSION"
@@ -47,10 +39,14 @@ jobs:
           echo "::error::Version mismatch! The version in pyproject.toml ($PACKAGE_VERSION) must match the version from the Git tag ($EXPECTED_VERSION)."
           exit 1
         fi
-        
-    - name: Build wheel only
-      # The --wheel flag tells 'build' to ONLY create a wheel, skipping the problematic sdist.
-      run: python -m build --wheel
-        
-    - name: Publish package to PyPI
+
+    - name: Build wheel only in container
+      # This uses YOUR proven Docker method with the final wheel-only fix.
+      run: docker exec py37builder python -m build --wheel
+      
+    - name: Stop and remove container
+      if: always() # This step will always run, even if the build fails, to clean up.
+      run: docker stop py37builder && docker rm py37builder
+
+    - name: Publish to PyPI
       uses: pypa/gh-action-pypi-publish@release/v1
