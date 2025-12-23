@@ -1,13 +1,10 @@
 name: Publish filelock-lts-py37 to PyPI
-
 on:
   release:
     types: [published]
   workflow_dispatch:
-
 permissions:
   id-token: write
-
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -20,14 +17,12 @@ jobs:
     - name: Set up Docker build container for Python 3.7
       run: |
         docker pull python:3.7-slim
-        docker create --name py37builder -v $PWD:/workspace -w /workspace python:3.7-slim tail -f /dev/null
-        docker start py37builder
+        docker run -d --name py37builder -v $PWD:/workspace -w /workspace python:3.7-slim tail -f /dev/null
         
     - name: Install dependencies in container
       run: docker exec py37builder python -m pip install --upgrade pip build tomli
         
     - name: Verify package version matches Git Tag
-      # This is your working version check logic. I am not touching it.
       run: |
         PACKAGE_VERSION=$(docker exec py37builder python -c "import tomli; print(tomli.load(open('pyproject.toml', 'rb'))['project']['version'])")
         TAG_NAME="${{ github.ref_name }}"
@@ -40,14 +35,13 @@ jobs:
           echo "::error::Version mismatch! The version in pyproject.toml ($PACKAGE_VERSION) must match the version from the Git tag ($EXPECTED_VERSION)."
           exit 1
         fi
-
+        
     - name: Build wheel only in container
-      # THE ONLY CHANGE IS HERE: Adding '--wheel'
       run: docker exec py37builder python -m build --wheel
       
     - name: Stop and remove container
       if: always()
       run: docker stop py37builder && docker rm py37builder
-
+      
     - name: Publish to PyPI
       uses: pypa/gh-action-pypi-publish@release/v1
