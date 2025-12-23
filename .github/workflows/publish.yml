@@ -1,8 +1,12 @@
 name: Publish filelock-lts-py37 to PyPI
 
 on:
+  # 1. Triggered automatically when a release is published
   release:
     types: [published]
+  
+  # 2. Allows you to trigger it manually from the Actions tab
+  workflow_dispatch:
 
 permissions:
   id-token: write # Required for passwordless (OIDC) publishing
@@ -27,13 +31,17 @@ jobs:
     - name: Verify package version matches Git Tag
       run: |
         PACKAGE_VERSION=$(python -c "import tomli; print(tomli.load(open('pyproject.toml', 'rb'))['project']['version'])")
+        
+        # This logic now correctly handles BOTH triggers:
+        # - For a 'release', it uses the tag of the release.
+        # - For a 'workflow_dispatch', it uses the tag of the current commit.
         TAG_NAME="${{ github.ref_name }}"
         
         # Transform the Git tag (e.g., "CVE-2025-68146") into the PyPI version ("2025.68146")
         EXPECTED_VERSION=${TAG_NAME#CVE-}
         
         echo "Version in pyproject.toml: $PACKAGE_VERSION"
-        echo "Version from Git Tag:      $EXPECTED_VERSION"
+        echo "Version from Git Tag ('$TAG_NAME'): $EXPECTED_VERSION"
         
         if [ "$PACKAGE_VERSION" != "$EXPECTED_VERSION" ]; then
           echo "::error::Version mismatch! The version in pyproject.toml ($PACKAGE_VERSION) must match the version from the Git tag ($EXPECTED_VERSION)."
@@ -46,5 +54,3 @@ jobs:
         
     - name: Publish package to PyPI
       uses: pypa/gh-action-pypi-publish@release/v1
-      # No 'with' block is needed here; the action defaults to uploading everything in dist/
-      # Since we only built a wheel, it will only upload the wheel.
