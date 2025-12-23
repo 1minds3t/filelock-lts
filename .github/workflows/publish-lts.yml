@@ -1,0 +1,96 @@
+name: Publish filelock-lts to PyPI
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      python_version:
+        description: 'Python version to build (3.7, 3.8, 3.9)'
+        required: true
+        default: '3.7'
+
+permissions:
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: pypi
+    
+    steps:
+    - name: Determine Python version from branch or input
+      id: python_version
+      run: |
+        if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+          PY_VERSION="${{ github.event.inputs.python_version }}"
+        else
+          # Extract from branch name (py3.7, py3.8, py3.9)
+          BRANCH="${{ github.ref_name }}"
+          if [[ "$BRANCH" =~ py3\.([0-9]+) ]]; then
+            PY_VERSION="3.${BASH_REMATCH[1]}"
+          else
+            echo "::error::Could not determine Python version from branch: $BRANCH"
+            exit 1
+          fi
+        fi
+        echo "version=$PY_VERSION" >> $GITHUB_OUTPUT
+        echo "Building for Python $PY_VERSION"
+    
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-tags: true
+        fetch-depth: 0
+    
+    - name: Checkout the correct tag
+      run: |
+        git fetch --tags
+        TAG=$(git tag --points-at HEAD | head -1)
+        if [ -z "$TAG" ]; then
+          echo "::warning::No tag found at HEAD, using current commit"
+        else
+          echo "Using tag: $TAG"
+          git checkout $TAG
+        fi
+      
+    - name: Set up Docker build container
+      run: |
+        PY_VERSION="${{ steps.python_version.outputs.version }}"
+        docker pull python:${PY_VERSION}-slim
+        docker run -d --name pybuilder -v $PWD:/workspace -w /workspace python:${PY_VERSION}-slim tail -f /dev/null
+        
+    - name: Install dependencies in container
+      run: docker exec pybuilder python -m pip install --upgrade pip build
+        
+    - name: Verify package version matches Git Tag
+      run: |
+        PACKAGE_VERSION=$(grep '^version = ' pyproject.toml | cut -d'"' -f2)
+        TAG_NAME=$(git tag --points-at HEAD | head -1)
+        
+        if [ -z "$TAG_NAME" ]; then
+          echo "::warning::No tag at HEAD, skipping version verification"
+        else
+          EXPECTED_VERSION=${TAG_NAME#CVE-}
+          EXPECTED_VERSION=${EXPECTED_VERSION//-/.}
+          
+          echo "Version in pyproject.toml: $PACKAGE_VERSION"
+          echo "Version from Git Tag ('$TAG_NAME'): $EXPECTED_VERSION"
+          
+          if [ "$PACKAGE_VERSION" != "$EXPECTED_VERSION" ]; then
+            echo "::error::Version mismatch! pyproject.toml=$PACKAGE_VERSION, tag=$EXPECTED_VERSION"
+            exit 1
+          fi
+        fi
+        
+    - name: Build wheel and source dist
+      run: docker exec pybuilder python -m build
+      
+    - name: Stop and remove container
+      if: always()
+      run: docker stop pybuilder && docker rm pybuilder
+      
+    - name: Publish to PyPI
+      uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        skip-existing: true
