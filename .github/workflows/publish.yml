@@ -8,6 +8,11 @@ on:
       python_version:
         description: 'Python version to build (3.7, 3.8, 3.9)'
         required: true
+        type: choice
+        options:
+          - '3.7'
+          - '3.8'
+          - '3.9'
 
 permissions:
   id-token: write
@@ -24,6 +29,7 @@ jobs:
         if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
           PY_VERSION="${{ github.event.inputs.python_version }}"
           BRANCH="py${PY_VERSION}"
+          echo "🔧 Manual run: Python $PY_VERSION from branch $BRANCH"
         else
           # Extract from release tag name (CVE-2025-68146-py37 -> 3.7)
           TAG_NAME="${{ github.event.release.tag_name }}"
@@ -41,11 +47,11 @@ jobs:
             echo "::error::Expected tag format: CVE-2025-68146-py37 or similar"
             exit 1
           fi
+          echo "📦 Release run: Python $PY_VERSION from branch $BRANCH"
         fi
         
         echo "version=$PY_VERSION" >> $GITHUB_OUTPUT
         echo "branch=$BRANCH" >> $GITHUB_OUTPUT
-        echo "📦 Building Python $PY_VERSION from branch $BRANCH"
     
     - name: Checkout the branch
       uses: actions/checkout@v4
