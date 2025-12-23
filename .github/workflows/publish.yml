@@ -27,6 +27,7 @@ jobs:
       run: docker exec py37builder python -m pip install --upgrade pip build tomli
         
     - name: Verify package version matches Git Tag
+      # This is your working version check logic. I am not touching it.
       run: |
         PACKAGE_VERSION=$(docker exec py37builder python -c "import tomli; print(tomli.load(open('pyproject.toml', 'rb'))['project']['version'])")
         TAG_NAME="${{ github.ref_name }}"
@@ -41,11 +42,11 @@ jobs:
         fi
 
     - name: Build wheel only in container
-      # This uses YOUR proven Docker method with the final wheel-only fix.
+      # THE ONLY CHANGE IS HERE: Adding '--wheel'
       run: docker exec py37builder python -m build --wheel
       
     - name: Stop and remove container
-      if: always() # This step will always run, even if the build fails, to clean up.
+      if: always()
       run: docker stop py37builder && docker rm py37builder
 
     - name: Publish to PyPI
