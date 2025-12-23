@@ -8,7 +8,6 @@ on:
       python_version:
         description: 'Python version to build (3.7, 3.8, 3.9)'
         required: true
-        default: '3.7'
 
 permissions:
   id-token: write
@@ -19,72 +18,71 @@ jobs:
     environment: pypi
     
     steps:
-    - name: Determine Python version from branch or input
-      id: python_version
+    - name: Determine Python version and branch
+      id: python_info
       run: |
         if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
           PY_VERSION="${{ github.event.inputs.python_version }}"
+          BRANCH="py${PY_VERSION}"
         else
-          # Extract from branch name (py3.7, py3.8, py3.9)
-          BRANCH="${{ github.ref_name }}"
-          if [[ "$BRANCH" =~ py3\.([0-9]+) ]]; then
-            PY_VERSION="3.${BASH_REMATCH[1]}"
+          # Extract from release target (branch name)
+          BRANCH="${{ github.event.release.target_commitish }}"
+          
+          # Extract Python version from branch name (py3.7 -> 3.7)
+          if [[ "$BRANCH" =~ py([0-9]+\.[0-9]+) ]]; then
+            PY_VERSION="${BASH_REMATCH[1]}"
+          elif [[ "$BRANCH" =~ ([0-9]+\.[0-9]+) ]]; then
+            PY_VERSION="${BASH_REMATCH[1]}"
           else
             echo "::error::Could not determine Python version from branch: $BRANCH"
             exit 1
           fi
         fi
+        
         echo "version=$PY_VERSION" >> $GITHUB_OUTPUT
-        echo "Building for Python $PY_VERSION"
+        echo "branch=$BRANCH" >> $GITHUB_OUTPUT
+        echo "📦 Building Python $PY_VERSION from branch $BRANCH"
     
-    - name: Checkout code
+    - name: Checkout the branch
       uses: actions/checkout@v4
       with:
-        fetch-tags: true
+        ref: ${{ steps.python_info.outputs.branch }}
         fetch-depth: 0
-    
-    - name: Checkout the correct tag
-      run: |
-        git fetch --tags
-        TAG=$(git tag --points-at HEAD | head -1)
-        if [ -z "$TAG" ]; then
-          echo "::warning::No tag found at HEAD, using current commit"
-        else
-          echo "Using tag: $TAG"
-          git checkout $TAG
-        fi
       
     - name: Set up Docker build container
       run: |
-        PY_VERSION="${{ steps.python_version.outputs.version }}"
+        PY_VERSION="${{ steps.python_info.outputs.version }}"
         docker pull python:${PY_VERSION}-slim
-        docker run -d --name pybuilder -v $PWD:/workspace -w /workspace python:${PY_VERSION}-slim tail -f /dev/null
+        docker run -d --name pybuilder \
+          -v $PWD:/workspace \
+          -w /workspace \
+          python:${PY_VERSION}-slim \
+          tail -f /dev/null
         
-    - name: Install dependencies in container
+    - name: Install build dependencies
       run: docker exec pybuilder python -m pip install --upgrade pip build
         
-    - name: Verify package version matches Git Tag
+    - name: Verify package metadata
       run: |
+        PACKAGE_NAME=$(grep '^name = ' pyproject.toml | cut -d'"' -f2)
         PACKAGE_VERSION=$(grep '^version = ' pyproject.toml | cut -d'"' -f2)
-        TAG_NAME=$(git tag --points-at HEAD | head -1)
         
-        if [ -z "$TAG_NAME" ]; then
-          echo "::warning::No tag at HEAD, skipping version verification"
-        else
-          EXPECTED_VERSION=${TAG_NAME#CVE-}
-          EXPECTED_VERSION=${EXPECTED_VERSION//-/.}
-          
-          echo "Version in pyproject.toml: $PACKAGE_VERSION"
-          echo "Version from Git Tag ('$TAG_NAME'): $EXPECTED_VERSION"
-          
-          if [ "$PACKAGE_VERSION" != "$EXPECTED_VERSION" ]; then
-            echo "::error::Version mismatch! pyproject.toml=$PACKAGE_VERSION, tag=$EXPECTED_VERSION"
-            exit 1
-          fi
+        echo "📦 Package: $PACKAGE_NAME"
+        echo "🏷️  Version: $PACKAGE_VERSION"
+        
+        # Verify it's the correct package for this Python version
+        PY_VERSION="${{ steps.python_info.outputs.version }}"
+        EXPECTED_SUFFIX="py${PY_VERSION//.}"
+        
+        if [[ ! "$PACKAGE_NAME" =~ $EXPECTED_SUFFIX ]]; then
+          echo "::warning::Package name ($PACKAGE_NAME) doesn't contain expected suffix ($EXPECTED_SUFFIX)"
         fi
         
-    - name: Build wheel and source dist
+    - name: Build distributions
       run: docker exec pybuilder python -m build
+      
+    - name: List built packages
+      run: ls -lh dist/
       
     - name: Stop and remove container
       if: always()
@@ -94,3 +92,11 @@ jobs:
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
         skip-existing: true
+
+    - name: Summary
+      run: |
+        echo "### 🎉 Published to PyPI" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "- **Package**: filelock-lts-py${{ steps.python_info.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Version**: $(grep '^version = ' pyproject.toml | cut -d'"' -f2)" >> $GITHUB_STEP_SUMMARY
+        echo "- **Python**: ${{ steps.python_info.outputs.version }}" >> $GITHUB_STEP_SUMMARY
