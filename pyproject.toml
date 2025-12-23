@@ -4,14 +4,14 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "filelock-lts"
-version = "2025.68146" # The dispatcher version can match the CVE it solves
+version = "2025.68146"
 description = "LTS security patches for the filelock library. Auto-installs the correct patched version for your Python."
 requires-python = ">=3.7, <3.10"
 license = { text = "Unlicense" }
 readme = "README.md"
 
 [project.dependencies]
-# This tells pip to install the package with this EXACT version
-"filelock-lts-py37 == 2025.68146; python_version == '3.7'"
-# Add more here as you create them, e.g.:
-# "filelock-lts-py38 == 2025.68146; python_version == '3.8'"
+# Auto-dispatch to correct Python version
+filelock-lts-py37 = {version = "==2025.68146", markers = "python_version == '3.7'"}
+filelock-lts-py38 = {version = "==2025.68146", markers = "python_version == '3.8'"}
+filelock-lts-py39 = {version = "==2025.68146", markers = "python_version == '3.9'"}
