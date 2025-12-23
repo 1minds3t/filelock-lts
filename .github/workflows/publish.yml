@@ -1,58 +1,102 @@
-name: Publish filelock-lts-py37 to PyPI
+name: Publish filelock-lts to PyPI
+
 on:
   release:
     types: [published]
   workflow_dispatch:
+    inputs:
+      python_version:
+        description: 'Python version to build (3.7, 3.8, 3.9)'
+        required: true
+
 permissions:
   id-token: write
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
     environment: pypi
     
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      with:
-        fetch-tags: true
-        fetch-depth: 0
-    
-    - name: Checkout the tag
+    - name: Determine Python version and branch
+      id: python_info
       run: |
-        git fetch --tags
-        TAG=$(git tag | head -1)
-        echo "Checking out tag: $TAG"
-        git checkout $TAG
-      
-    - name: Set up Docker build container for Python 3.7
-      run: |
-        docker pull python:3.7-slim
-        docker run -d --name py37builder -v $PWD:/workspace -w /workspace python:3.7-slim tail -f /dev/null
-        
-    - name: Install dependencies in container
-      run: docker exec py37builder python -m pip install --upgrade pip build
-        
-    - name: Verify package version matches Git Tag
-      run: |
-        PACKAGE_VERSION=$(grep '^version = ' pyproject.toml | cut -d'"' -f2)
-        TAG_NAME=$(git tag | head -1)
-        EXPECTED_VERSION=${TAG_NAME#CVE-}
-        EXPECTED_VERSION=${EXPECTED_VERSION//-/.}
-        
-        echo "Version in pyproject.toml: $PACKAGE_VERSION"
-        echo "Version from Git Tag ('$TAG_NAME'): $EXPECTED_VERSION"
-        
-        if [ "$PACKAGE_VERSION" != "$EXPECTED_VERSION" ]; then
-          echo "::error::Version mismatch! The version in pyproject.toml ($PACKAGE_VERSION) must match the version from the Git tag ($EXPECTED_VERSION)."
-          exit 1
+        if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+          PY_VERSION="${{ github.event.inputs.python_version }}"
+          BRANCH="py${PY_VERSION}"
+        else
+          # Extract from release target (branch name)
+          BRANCH="${{ github.event.release.target_commitish }}"
+          
+          # Extract Python version from branch name (py3.7 -> 3.7)
+          if [[ "$BRANCH" =~ py([0-9]+\.[0-9]+) ]]; then
+            PY_VERSION="${BASH_REMATCH[1]}"
+          elif [[ "$BRANCH" =~ ([0-9]+\.[0-9]+) ]]; then
+            PY_VERSION="${BASH_REMATCH[1]}"
+          else
+            echo "::error::Could not determine Python version from branch: $BRANCH"
+            exit 1
+          fi
         fi
         
-    - name: Build wheel only in container
-      run: docker exec py37builder python -m build --wheel
+        echo "version=$PY_VERSION" >> $GITHUB_OUTPUT
+        echo "branch=$BRANCH" >> $GITHUB_OUTPUT
+        echo "📦 Building Python $PY_VERSION from branch $BRANCH"
+    
+    - name: Checkout the branch
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ steps.python_info.outputs.branch }}
+        fetch-depth: 0
+      
+    - name: Set up Docker build container
+      run: |
+        PY_VERSION="${{ steps.python_info.outputs.version }}"
+        docker pull python:${PY_VERSION}-slim
+        docker run -d --name pybuilder \
+          -v $PWD:/workspace \
+          -w /workspace \
+          python:${PY_VERSION}-slim \
+          tail -f /dev/null
+        
+    - name: Install build dependencies
+      run: docker exec pybuilder python -m pip install --upgrade pip build
+        
+    - name: Verify package metadata
+      run: |
+        PACKAGE_NAME=$(grep '^name = ' pyproject.toml | cut -d'"' -f2)
+        PACKAGE_VERSION=$(grep '^version = ' pyproject.toml | cut -d'"' -f2)
+        
+        echo "📦 Package: $PACKAGE_NAME"
+        echo "🏷️  Version: $PACKAGE_VERSION"
+        
+        # Verify it's the correct package for this Python version
+        PY_VERSION="${{ steps.python_info.outputs.version }}"
+        EXPECTED_SUFFIX="py${PY_VERSION//.}"
+        
+        if [[ ! "$PACKAGE_NAME" =~ $EXPECTED_SUFFIX ]]; then
+          echo "::warning::Package name ($PACKAGE_NAME) doesn't contain expected suffix ($EXPECTED_SUFFIX)"
+        fi
+        
+    - name: Build distributions
+      run: docker exec pybuilder python -m build
+      
+    - name: List built packages
+      run: ls -lh dist/
       
     - name: Stop and remove container
       if: always()
-      run: docker stop py37builder && docker rm py37builder
+      run: docker stop pybuilder && docker rm pybuilder
       
     - name: Publish to PyPI
       uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        skip-existing: true
+
+    - name: Summary
+      run: |
+        echo "### 🎉 Published to PyPI" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "- **Package**: filelock-lts-py${{ steps.python_info.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Version**: $(grep '^version = ' pyproject.toml | cut -d'"' -f2)" >> $GITHUB_STEP_SUMMARY
+        echo "- **Python**: ${{ steps.python_info.outputs.version }}" >> $GITHUB_STEP_SUMMARY
