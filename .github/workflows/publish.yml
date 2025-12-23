@@ -1,17 +1,11 @@
 name: Publish filelock-lts-py37 to PyPI
 
 on:
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: 'Select tag to publish'
-        required: true
-        type: choice
-        options:
-          - CVE-2025-68146
+  release:
+    types: [published]
 
 permissions:
-  id-token: write
+  id-token: write # Required for passwordless (OIDC) publishing
 
 jobs:
   deploy:
@@ -19,47 +13,38 @@ jobs:
     environment: pypi
     
     steps:
-    - name: Checkout repository
+    - name: Checkout code
       uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
       
-    - name: Checkout the specific tag
-      run: |
-        git checkout tags/${{ github.event.inputs.tag }}
-        echo "=== Verifying we have the right code ==="
-        cat pyproject.toml | head -20
+    - name: Set up Python 3.7
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.7'
         
-    - name: Set up Python 3.7 using Docker
-      run: |
-        docker pull python:3.7-slim
-        docker create --name py37builder -v $PWD:/workspace -w /workspace python:3.7-slim tail -f /dev/null
-        docker start py37builder
-        
-    - name: Install dependencies in container
-      run: |
-        docker exec py37builder python -m pip install --upgrade pip build tomli
+    - name: Install dependencies
+      run: python -m pip install --upgrade pip build tomli
         
     - name: Verify package version matches Git Tag
       run: |
-        PACKAGE_VERSION=$(docker exec py37builder python -c "import tomli; print(tomli.load(open('pyproject.toml', 'rb'))['project']['version'])")
-        TAG_NAME="${{ github.event.inputs.tag }}"
-        EXPECTED_VERSION=${TAG_NAME#CVE-}
-        EXPECTED_VERSION=${EXPECTED_VERSION//-/.}
+        PACKAGE_VERSION=$(python -c "import tomli; print(tomli.load(open('pyproject.toml', 'rb'))['project']['version'])")
+        TAG_NAME="${{ github.ref_name }}"
         
-        echo "Package version: $PACKAGE_VERSION"
-        echo "Expected version: $EXPECTED_VERSION"
+        # Transform the Git tag (e.g., "CVE-2025-68146") into the PyPI version ("2025.68146")
+        EXPECTED_VERSION=${TAG_NAME#CVE-}
+        
+        echo "Version in pyproject.toml: $PACKAGE_VERSION"
+        echo "Version from Git Tag:      $EXPECTED_VERSION"
         
         if [ "$PACKAGE_VERSION" != "$EXPECTED_VERSION" ]; then
-          echo "::error::Version mismatch!"
+          echo "::error::Version mismatch! The version in pyproject.toml ($PACKAGE_VERSION) must match the version from the Git tag ($EXPECTED_VERSION)."
           exit 1
         fi
         
-    - name: Build package in container
-      run: docker exec py37builder python -m build
-      
-    - name: Stop container
-      run: docker stop py37builder && docker rm py37builder
-      
-    - name: Publish to PyPI
+    - name: Build wheel only
+      # The --wheel flag tells 'build' to ONLY create a wheel, skipping the problematic sdist.
+      run: python -m build --wheel
+        
+    - name: Publish package to PyPI
       uses: pypa/gh-action-pypi-publish@release/v1
+      # No 'with' block is needed here; the action defaults to uploading everything in dist/
+      # Since we only built a wheel, it will only upload the wheel.
