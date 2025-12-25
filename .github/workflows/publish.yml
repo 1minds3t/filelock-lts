@@ -124,7 +124,8 @@ jobs:
         fi
     
     - name: Build package
-      run: docker exec pybuilder python -m build
+      run: docker exec pybuilder python -m build --sdist --wheel
+    
     
     - name: Show build artifacts
       run: ls -lh dist/
