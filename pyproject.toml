@@ -3,13 +3,13 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "filelock-lts-py39"
+name = "filelock-lts-py311"
 version = "2025.68146"
-description = "Python 3.9 compatible filelock with CVE-2025-68146 patch"
-requires-python = ">=3.9, <3.10"
+description = "filelock LTS tracker for Python 3.11 (redirects to official filelock >= 3.20.1)"
+requires-python = ">=3.11, <3.12"
 license = {text = "Unlicense"}
 readme = "README.md"
-classifiers = ["Programming Language :: Python :: 3.9"]
+dependencies = ["filelock>=3.20.1"]
 
 [project.urls]
 Homepage = "https://github.com/1minds3t/filelock-lts"
