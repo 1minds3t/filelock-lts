@@ -5,13 +5,17 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "filelock-lts-py37"
 version = "2025.68146"
-description = "LTS patch for filelock (CVE-2025-68146) on Python 3.7. Replaces original filelock."
+description = "Python 3.7 filelock with CVE-2025-68146 security patch (symlink attack prevention via O_NOFOLLOW)"
+requires-python = ">=3.7, <3.8"
+license = {text = "Unlicense"}
 readme = "README.md"
-requires-python = "==3.7.*"
-license = { text = "Unlicense" }
+classifiers = [
+    "Programming Language :: Python :: 3.7",
+    "Topic :: Security",
+    "Intended Audience :: Developers"
+]
 
 [project.urls]
 Homepage = "https://github.com/1minds3t/filelock-lts"
-
-[tool.setuptools.packages.find]
-where = ["src"]
+"CVE Details" = "https://nvd.nist.gov/vuln/detail/CVE-2025-68146"
+"Source" = "https://github.com/1minds3t/filelock-lts/tree/py3.7"
