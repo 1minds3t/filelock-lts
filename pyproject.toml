@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "filelock-lts-py311"
-version = "2025.68146"
+version = "2025.68146.1"
 description = "Python 3.11 filelock with CVE-2025-68146 security patch (symlink attack prevention via O_NOFOLLOW)"
 requires-python = ">=3.11, <3.12"
 license = "Unlicense"  # ← Changed from {text = "Unlicense"}
