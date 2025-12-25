@@ -1,15 +1,26 @@
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = ["setuptools>=77.0.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "filelock-lts-py311"
-version = "2025.68146"
-description = "filelock LTS tracker for Python 3.11 (redirects to official filelock >= 3.20.1)"
+version = "2025.68146.1"
+description = "Python 3.11 filelock with CVE-2025-68146 security patch (symlink attack prevention via O_NOFOLLOW)"
 requires-python = ">=3.11, <3.12"
-license = {text = "Unlicense"}
+license = "Unlicense"  # ← Changed from {text = "Unlicense"}
 readme = "README.md"
-dependencies = ["filelock>=3.20.1"]
+classifiers = [
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Security",
+    "Intended Audience :: Developers"
+]
 
 [project.urls]
 Homepage = "https://github.com/1minds3t/filelock-lts"
+"CVE Details" = "https://nvd.nist.gov/vuln/detail/CVE-2025-68146"
+"Source" = "https://github.com/1minds3t/filelock-lts/tree/py3.11"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["filelock_lts_py311*"]  # ← Only include your package
+exclude = ["filelock*", "downloads*", "tests*", "*.egg-info"]  # ← Exclude everything else
