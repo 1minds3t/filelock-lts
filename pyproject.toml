@@ -18,7 +18,7 @@ dependencies = [
     "filelock-lts-py38==2025.68146.2 ; python_version >= '3.8' and python_version < '3.9'",
     "filelock-lts-py39==2025.68146.2 ; python_version >= '3.9' and python_version < '3.10'",
     "filelock-lts-py310==2025.68146.1 ; python_version >= '3.10' and python_version < '3.11'",
-    "filelock-lts-py311==2025.68146.1 ; python_version >= '3.11' and python_version < '3.12'",
+    "filelock-lts-py311==2025.68146.2 ; python_version >= '3.11' and python_version < '3.12'",
     "filelock-lts-py312==2025.68146.1 ; python_version >= '3.12' and python_version < '3.13'",
     "filelock-lts-py313==2025.68146.1 ; python_version >= '3.13' and python_version < '3.14'",
     "filelock-lts-py314==2025.68146.1 ; python_version >= '3.14' and python_version < '3.15'"
