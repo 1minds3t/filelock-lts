@@ -5,11 +5,17 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "filelock-lts-py38"
 version = "2025.68146"
-description = "Python 3.8 compatible filelock with CVE-2025-68146 patch"
+description = "Python 3.8 filelock with CVE-2025-68146 security patch (symlink attack prevention via O_NOFOLLOW)"
 requires-python = ">=3.8, <3.9"
 license = {text = "Unlicense"}
 readme = "README.md"
-classifiers = ["Programming Language :: Python :: 3.8"]
+classifiers = [
+    "Programming Language :: Python :: 3.8",
+    "Topic :: Security",
+    "Intended Audience :: Developers"
+]
 
 [project.urls]
 Homepage = "https://github.com/1minds3t/filelock-lts"
+"CVE Details" = "https://nvd.nist.gov/vuln/detail/CVE-2025-68146"
+"Source" = "https://github.com/1minds3t/filelock-lts/tree/py3.8"
