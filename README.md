@@ -1,13 +1,41 @@
-# filelock
+# Filelock LTS (py3.9) - 🛡️ PATCHED (Backport)
 
-[![PyPI](https://img.shields.io/pypi/v/filelock)](https://pypi.org/project/filelock/)
-[![Supported Python
-versions](https://img.shields.io/pypi/pyversions/filelock.svg)](https://pypi.org/project/filelock/)
-[![Documentation
-status](https://readthedocs.org/projects/py-filelock/badge/?version=latest)](https://py-filelock.readthedocs.io/en/latest/?badge=latest)
-[![Code style:
-black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
-[![Downloads](https://static.pepy.tech/badge/filelock/month)](https://pepy.tech/project/filelock)
-[![check](https://github.com/tox-dev/py-filelock/actions/workflows/check.yaml/badge.svg)](https://github.com/tox-dev/py-filelock/actions/workflows/check.yaml)
+| **Metric** | **Details** |
+|:---|:---|
+| **CVE** | [CVE-2025-68146](https://nvd.nist.gov/vuln/detail/CVE-2025-68146) |
+| **Version** | `2025.68146` |
+| **Base Core** | `filelock 3.19.1` |
+| **Python** | `Python 3.9` |
+| **License** | Unlicense (Public Domain) |
 
-For more information checkout the [official documentation](https://py-filelock.readthedocs.io/en/latest/index.html).
+---
+
+## 🛡️ Security Patch Overview
+**This release backports the critical security fix for CVE-2025-68146 to Python 3.9.**
+
+While upstream `filelock` patched this issue in versions requiring Python 3.10+, millions of installations on older Python versions remain vulnerable. This package restores security parity for legacy environments.
+
+### The Problem
+*   **Vulnerability:** CVE-2025-68146 (Symlink TOCTOU Attack)
+*   **Impact:** Attackers can truncate arbitrary files via symlink race conditions.
+*   **Context:** Official upstream patches are not available for Python 3.9.
+
+### The Solution
+This package is a **drop-in replacement**. It contains the original source code of `filelock 3.19.1` but applies the specific security patch manually.
+
+```bash
+pip install filelock-lts-py3.9==2025.68146
+```
+
+### ⚙️ Technical Details
+*   **Fix Implementation:** We force `os.O_NOFOLLOW` in the `UnixFileLock` handler.
+*   **Verification:** You can compare the source tree of this branch against the official `filelock 3.19.1` tag. The only difference is the security patch in `_unix.py`.
+
+
+## 🔮 The Future: Proactive Security
+We are building the **Filelock LTS Runtime Ecosystem**. In future releases, this package will support:
+
+1.  **Pre-Patch Protocols (Alpha)**: We will release "Pre-Patch" versions (e.g., `0.2026.1234`) immediately upon vulnerability discovery, allowing you to patch **before** upstream maintainers release official fixes.
+2.  **Runtime Protection**: A `filelock-lts-runtime` module that scans your environment and hot-patches vulnerable libraries in memory without requiring a restart.
+3.  **Configurable Policies**: Choose between `warn`, `block`, or `sandbox` modes for file operations.
+
