@@ -6,10 +6,10 @@ build-backend = "setuptools.build_meta"
 name = "filelock-lts-py310"
 version = "2025.68146"
 description = "Python 3.9 compatible filelock with CVE-2025-68146 patch"
-requires-python = ">=3.9, <3.10"
+requires-python = ">=3.10, <3.11"
 license = {text = "Unlicense"}
 readme = "README.md"
-classifiers = ["Programming Language :: Python :: 3.9"]
+classifiers = ["Programming Language :: Python :: 3.10"]
 
 [project.urls]
 Homepage = "https://github.com/1minds3t/filelock-lts"
