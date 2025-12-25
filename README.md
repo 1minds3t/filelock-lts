@@ -1,47 +1,53 @@
 # Filelock LTS: The CVE-Aware Ecosystem 🛡️
 
-![Security Status](https://img.shields.io/badge/Security-Patched-success) ![CVE](https://img.shields.io/badge/CVE-2025--68146-Fixed-blue)
 
-**A unified security ecosystem ensuring `filelock` safety across ALL Python versions (3.7 - 3.14).**
+> **⚠️ Disclaimer:** This project is **not affiliated with, endorsed by, or associated with** the official `filelock` maintainers. All patches and releases are independently maintained and provided on a best-effort basis to support legacy environments.
+
+
+![alt text](https://img.shields.io/badge/Security-Patched-success) ![alt text](https://img.shields.io/badge/CVE-2025--68146-Fixed-blue)
+
+A unified security ecosystem ensuring filelock safety across ALL Python versions (3.7 - 3.14).
 
 ## 🚨 The Vulnerability: CVE-2025-68146
-A critical **Time-of-Check-Time-of-Use (TOCTOU)** race condition allows local attackers to truncate or corrupt sensitive files via symlink attacks. 
+A critical Time-of-Check-Time-of-Use (TOCTOU) race condition allows local attackers to truncate or corrupt sensitive files via symlink or junction attacks.
 
 ## 🛡️ The Solution
 This repository acts as a smart dispatcher. Installing `filelock-lts` automatically delivers the correct security strategy for your Python runtime:
 
 | Python Version | Strategy | Base Version | Status |
-|:---:|:---|:---|:---:|
-| **3.7** | **Custom Backport** | `3.12.2` | 🛡️ **SECURED** |
-| **3.8** | **Custom Backport** | `3.16.1` | 🛡️ **SECURED** |
-| **3.9** | **Custom Backport** | `3.19.1` | 🛡️ **SECURED** |
-| **3.10+** | **Upstream Proxy** | `Official >= 3.20.1` | ✅ **REDIRECTED** |
+|:---|:---|:---|:---|
+| 3.7 | Custom Backport | 3.12.2 | 🛡️ SECURED (Unix + Win32) |
+| 3.8 | Custom Backport | 3.16.1 | 🛡️ SECURED (Unix + Win32) |
+| 3.9 | Custom Backport | 3.19.1 | 🛡️ SECURED (Unix + Win32) |
+| 3.10+ | Upstream Proxy | Official >= 3.20.1 | ✅ REDIRECTED |
 
 ## 📦 Installation
-
 **Standard Installation (Recommended):**
+
 ```bash
 pip install filelock-lts
 ```
-*This automatically selects the correct package for your environment.*
+
+This automatically selects the correct package for your environment.
 
 **Specific Version Targeting:**
+
 ```bash
 pip install filelock-lts-py38  # For Python 3.8 specifically
 ```
 
 
-## 🔮 The Future: Proactive Security
-We are building the **Filelock LTS Runtime Ecosystem**. In future releases, this package will support:
+## 🔮 The Future: Proactive Dependency Security
+The Filelock LTS ecosystem is evolving to provide earlier visibility and stronger controls around dependency risk:
 
-1.  **Pre-Patch Protocols (Alpha)**: We will release "Pre-Patch" versions (e.g., `0.2026.1234`) immediately upon vulnerability discovery, allowing you to patch **before** upstream maintainers release official fixes.
-2.  **Runtime Protection**: A `filelock-lts-runtime` module that scans your environment and hot-patches vulnerable libraries in memory without requiring a restart.
-3.  **Configurable Policies**: Choose between `warn`, `block`, or `sandbox` modes for file operations.
+1.  **Early Warning Releases**: Placeholder LTS releases may be published when a potential upstream security issue is under investigation, allowing users to prepare before official advisories are issued.
+2.  **Runtime Policy Enforcement (Optional)**: An opt-in runtime module that detects vulnerable dependency versions at runtime and enforces user-configured policies (warn, block, or isolate).
+3.  **Configurable Security Policies**: Teams can choose how unpatched dependencies are handled based on their risk tolerance and operational needs.
 
 
 ## 🏗️ Architecture
-*   **`main`**: The metadata dispatcher (this branch).
-*   **`py3.X`**: Isolated branches containing specific source code or dependency definitions for that Python version.
+- **main**: The metadata dispatcher (this branch).
+- **py3.X**: Isolated branches containing specific source code or dependency definitions for that Python version.
 
 ## 🤝 License
 Unlicense (Public Domain). Security belongs to everyone.
