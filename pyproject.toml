@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "filelock-lts"
-version = "2025.68146"
+version = "2025.68146.1"
 description = "LTS Security release for filelock (CVE-2025-68146 Patch) - Meta-package"
 requires-python = ">=3.7"
 license = {text = "Unlicense"}
