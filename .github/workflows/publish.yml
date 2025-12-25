@@ -22,6 +22,7 @@ on:
 
 permissions:
   id-token: write
+  contents: read
 
 jobs:
   deploy:
@@ -49,7 +50,7 @@ jobs:
           TAG_NAME="${{ github.event.release.tag_name }}"
           echo "🏷️ Processing tag: $TAG_NAME"
           
-          # Match: CVE-2025-68146 or CVE-2025-68146.1 (dispatcher)
+          # Match: CVE-2025-68146.1 or CVE-2025-68146 (dispatcher)
           if [[ "$TAG_NAME" =~ ^CVE-[0-9]+-[0-9]+(\.[0-9]+)?$ ]]; then
             PY_VERSION="3.9"
             BRANCH="main"
@@ -70,7 +71,7 @@ jobs:
             echo "📦 Python $PY_VERSION release from $BRANCH"
           else
             echo "::error::Cannot parse tag: $TAG_NAME"
-            echo "::error::Expected: CVE-2025-68146 (dispatcher) or CVE-2025-68146-py37 (specific)"
+            echo "::error::Expected format like CVE-XXX-py37"
             exit 1
           fi
         fi
@@ -101,12 +102,8 @@ jobs:
     - name: Verify package metadata
       run: |
         PACKAGE_NAME=$(grep '^name = ' pyproject.toml | cut -d'"' -f2)
-        PACKAGE_VERSION=$(grep '^version = ' pyproject.toml | cut -d'"' -f2)
         IS_DISPATCHER="${{ steps.python_info.outputs.is_dispatcher }}"
         PY_VERSION="${{ steps.python_info.outputs.version }}"
-        
-        echo "📦 Package: $PACKAGE_NAME"
-        echo "🏷️ Version: $PACKAGE_VERSION"
         
         if [ "$IS_DISPATCHER" == "true" ]; then
           if [ "$PACKAGE_NAME" != "filelock-lts" ]; then
@@ -126,7 +123,23 @@ jobs:
     - name: Build package
       run: docker exec pybuilder python -m build --sdist --wheel
     
-    
+    # --- THIS IS THE FIX ---
+    - name: Sanitize filenames for PyPI (PEP 625)
+      run: |
+        echo "🔍 Checking for hyphenated artifacts..."
+        cd dist
+        for f in *; do
+          # Replace all hyphens with underscores in the filename
+          # e.g., filelock-lts-py37 -> filelock_lts_py37
+          new_name="${f//-/_}"
+          if [ "$f" != "$new_name" ]; then
+            echo "✏️ Renaming: $f -> $new_name"
+            mv "$f" "$new_name"
+          fi
+        done
+        cd ..
+    # -----------------------
+
     - name: Show build artifacts
       run: ls -lh dist/
     
