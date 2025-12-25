@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "filelock-lts-py39"
-version = "2025.68146.1"
+version = "2025.68146.2"
 description = "Python 3.9 compatible filelock with CVE-2025-68146 patch"
 requires-python = ">=3.9, <3.10"
 license = {text = "Unlicense"}
