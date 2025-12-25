@@ -6,14 +6,19 @@ on:
   workflow_dispatch:
     inputs:
       python_version:
-        description: 'Python version to build (3.7, 3.8, 3.9, dispatcher)'
+        description: 'Python version to build'
         required: true
         type: choice
         options:
+          - 'dispatcher'
           - '3.7'
           - '3.8'
           - '3.9'
-          - 'dispatcher'
+          - '3.10'
+          - '3.11'
+          - '3.12'
+          - '3.13'
+          - '3.14'
 
 permissions:
   id-token: write
@@ -33,39 +38,39 @@ jobs:
             PY_VERSION="3.9"
             BRANCH="main"
             IS_DISPATCHER="true"
-            echo "📦 Manual run: Building dispatcher from main branch"
+            echo "📦 Manual: Building dispatcher from main"
           else
             PY_VERSION="$INPUT"
             BRANCH="py${PY_VERSION}"
             IS_DISPATCHER="false"
-            echo "🔧 Manual run: Python $PY_VERSION from branch $BRANCH"
+            echo "📦 Manual: Building Python $PY_VERSION from $BRANCH"
           fi
         else
-          # Extract from release tag name
           TAG_NAME="${{ github.event.release.tag_name }}"
+          echo "🏷️ Processing tag: $TAG_NAME"
           
-          # Check if it's a dispatcher release (no py suffix)
-          if [[ "$TAG_NAME" =~ ^CVE-[0-9]+-[0-9]+$ ]]; then
-            # Dispatcher release: CVE-2025-68146
+          # Match: CVE-2025-68146 or CVE-2025-68146.1 (dispatcher)
+          if [[ "$TAG_NAME" =~ ^CVE-[0-9]+-[0-9]+(\.[0-9]+)?$ ]]; then
             PY_VERSION="3.9"
             BRANCH="main"
             IS_DISPATCHER="true"
-            echo "📦 Release run: Building dispatcher from main branch"
+            echo "📦 Dispatcher release from main"
+          # Match: CVE-2025-68146-py37, CVE-2025-68146.1-py38
           elif [[ "$TAG_NAME" =~ -py([0-9])([0-9]+)$ ]]; then
-            # Python-specific release: CVE-2025-68146-py37 -> 3.7
             PY_VERSION="${BASH_REMATCH[1]}.${BASH_REMATCH[2]}"
             BRANCH="py${PY_VERSION}"
             IS_DISPATCHER="false"
-            echo "📦 Release run: Python $PY_VERSION from branch $BRANCH"
-          elif [[ "$TAG_NAME" =~ py([0-9]+\.[0-9]+) ]]; then
-            # Alternative format: py3.7 or release-py3.7
-            PY_VERSION="${BASH_REMATCH[1]}"
+            echo "📦 Python $PY_VERSION release from $BRANCH"
+          # Match: CVE-2025-68146-py310, CVE-2025-68146-py314
+          elif [[ "$TAG_NAME" =~ -py([0-9]+)$ ]]; then
+            PY_NUM="${BASH_REMATCH[1]}"
+            PY_VERSION="${PY_NUM:0:1}.${PY_NUM:1}"
             BRANCH="py${PY_VERSION}"
             IS_DISPATCHER="false"
-            echo "📦 Release run: Python $PY_VERSION from branch $BRANCH"
+            echo "📦 Python $PY_VERSION release from $BRANCH"
           else
-            echo "::error::Could not determine build type from tag: $TAG_NAME"
-            echo "::error::Expected formats: CVE-2025-68146 (dispatcher) or CVE-2025-68146-py37 (specific)"
+            echo "::error::Cannot parse tag: $TAG_NAME"
+            echo "::error::Expected: CVE-2025-68146 (dispatcher) or CVE-2025-68146-py37 (specific)"
             exit 1
           fi
         fi
@@ -74,13 +79,13 @@ jobs:
         echo "branch=$BRANCH" >> $GITHUB_OUTPUT
         echo "is_dispatcher=$IS_DISPATCHER" >> $GITHUB_OUTPUT
     
-    - name: Checkout the branch
+    - name: Checkout correct branch
       uses: actions/checkout@v4
       with:
         ref: ${{ steps.python_info.outputs.branch }}
         fetch-depth: 0
     
-    - name: Set up Docker build container
+    - name: Set up Python build environment
       run: |
         PY_VERSION="${{ steps.python_info.outputs.version }}"
         docker pull python:${PY_VERSION}-slim
@@ -90,46 +95,43 @@ jobs:
           python:${PY_VERSION}-slim \
           tail -f /dev/null
     
-    - name: Install build dependencies
+    - name: Install build tools
       run: docker exec pybuilder python -m pip install --upgrade pip build
     
     - name: Verify package metadata
       run: |
         PACKAGE_NAME=$(grep '^name = ' pyproject.toml | cut -d'"' -f2)
         PACKAGE_VERSION=$(grep '^version = ' pyproject.toml | cut -d'"' -f2)
+        IS_DISPATCHER="${{ steps.python_info.outputs.is_dispatcher }}"
+        PY_VERSION="${{ steps.python_info.outputs.version }}"
         
         echo "📦 Package: $PACKAGE_NAME"
-        echo "🏷️  Version: $PACKAGE_VERSION"
-        
-        IS_DISPATCHER="${{ steps.python_info.outputs.is_dispatcher }}"
+        echo "🏷️ Version: $PACKAGE_VERSION"
         
         if [ "$IS_DISPATCHER" == "true" ]; then
-          # Verify dispatcher package
           if [ "$PACKAGE_NAME" != "filelock-lts" ]; then
-            echo "::error::Expected package name 'filelock-lts' for dispatcher, got '$PACKAGE_NAME'"
+            echo "::error::Expected 'filelock-lts', got '$PACKAGE_NAME'"
             exit 1
           fi
-          echo "✅ Building dispatcher package"
+          echo "✅ Dispatcher package verified"
         else
-          # Verify Python-specific package
-          PY_VERSION="${{ steps.python_info.outputs.version }}"
           EXPECTED_SUFFIX="py${PY_VERSION//.}"
-          
           if [[ ! "$PACKAGE_NAME" =~ $EXPECTED_SUFFIX ]]; then
-            echo "::error::Package name ($PACKAGE_NAME) doesn't contain expected suffix ($EXPECTED_SUFFIX)"
+            echo "::error::Package '$PACKAGE_NAME' missing suffix '$EXPECTED_SUFFIX'"
             exit 1
           fi
-          echo "✅ Building Python $PY_VERSION specific package"
+          echo "✅ Python $PY_VERSION package verified"
         fi
     
-    - name: Build distributions
+    - name: Build package
       run: docker exec pybuilder python -m build
     
-    - name: List built packages
+    - name: Show build artifacts
       run: ls -lh dist/
     
-    - name: Stop and remove container
+    - name: Cleanup Docker
       if: always()
+      continue-on-error: true
       run: docker stop pybuilder && docker rm pybuilder
     
     - name: Publish to PyPI
@@ -137,7 +139,7 @@ jobs:
       with:
         skip-existing: true
     
-    - name: Summary
+    - name: Build summary
       run: |
         IS_DISPATCHER="${{ steps.python_info.outputs.is_dispatcher }}"
         PACKAGE_VERSION=$(grep '^version = ' pyproject.toml | cut -d'"' -f2)
@@ -146,11 +148,11 @@ jobs:
         echo "" >> $GITHUB_STEP_SUMMARY
         
         if [ "$IS_DISPATCHER" == "true" ]; then
-          echo "- **Package**: filelock-lts (dispatcher)" >> $GITHUB_STEP_SUMMARY
-          echo "- **Version**: $PACKAGE_VERSION" >> $GITHUB_STEP_SUMMARY
-          echo "- **Type**: Meta-package that installs correct version for Python 3.7-3.9" >> $GITHUB_STEP_SUMMARY
+          echo "**Package:** filelock-lts (dispatcher)" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** $PACKAGE_VERSION" >> $GITHUB_STEP_SUMMARY
+          echo "**Type:** Auto-selects correct version for Python 3.7-3.14" >> $GITHUB_STEP_SUMMARY
         else
-          echo "- **Package**: filelock-lts-py${{ steps.python_info.outputs.version }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Version**: $PACKAGE_VERSION" >> $GITHUB_STEP_SUMMARY
-          echo "- **Python**: ${{ steps.python_info.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Package:** filelock-lts-py${{ steps.python_info.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** $PACKAGE_VERSION" >> $GITHUB_STEP_SUMMARY
+          echo "**Python:** ${{ steps.python_info.outputs.version }}" >> $GITHUB_STEP_SUMMARY
         fi
