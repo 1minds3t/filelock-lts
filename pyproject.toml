@@ -7,9 +7,14 @@ name = "filelock-lts-py312"
 version = "2025.68146"
 description = "filelock LTS tracker for Python 3.12 (redirects to official filelock >= 3.20.1)"
 requires-python = ">=3.12, <3.13"
-license = {text = "Unlicense"}
+license = "Unlicense"
 readme = "README.md"
 dependencies = ["filelock>=3.20.1"]
 
 [project.urls]
 Homepage = "https://github.com/1minds3t/filelock-lts"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["filelock*"]
+exclude = ["downloads*", "tests*", "*.egg-info"]
