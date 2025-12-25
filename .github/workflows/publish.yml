@@ -50,19 +50,16 @@ jobs:
           TAG_NAME="${{ github.event.release.tag_name }}"
           echo "🏷️ Processing tag: $TAG_NAME"
           
-          # Match: CVE-2025-68146.1 or CVE-2025-68146 (dispatcher)
           if [[ "$TAG_NAME" =~ ^CVE-[0-9]+-[0-9]+(\.[0-9]+)?$ ]]; then
             PY_VERSION="3.9"
             BRANCH="main"
             IS_DISPATCHER="true"
             echo "📦 Dispatcher release from main"
-          # Match: CVE-2025-68146-py37, CVE-2025-68146.1-py38
           elif [[ "$TAG_NAME" =~ -py([0-9])([0-9]+)$ ]]; then
             PY_VERSION="${BASH_REMATCH[1]}.${BASH_REMATCH[2]}"
             BRANCH="py${PY_VERSION}"
             IS_DISPATCHER="false"
             echo "📦 Python $PY_VERSION release from $BRANCH"
-          # Match: CVE-2025-68146-py310, CVE-2025-68146-py314
           elif [[ "$TAG_NAME" =~ -py([0-9]+)$ ]]; then
             PY_NUM="${BASH_REMATCH[1]}"
             PY_VERSION="${PY_NUM:0:1}.${PY_NUM:1}"
@@ -71,7 +68,6 @@ jobs:
             echo "📦 Python $PY_VERSION release from $BRANCH"
           else
             echo "::error::Cannot parse tag: $TAG_NAME"
-            echo "::error::Expected format like CVE-XXX-py37"
             exit 1
           fi
         fi
@@ -97,95 +93,42 @@ jobs:
           tail -f /dev/null
     
     - name: Install build tools
-      run: docker exec pybuilder python -m pip install --upgrade pip 
-
+      run: docker exec pybuilder python -m pip install --upgrade pip build
+    
     - name: Verify package metadata
       run: |
-       PACKAGE_NAME=$(grep '^name = ' pyproject.toml | cut -d'"' -f2)
-       PACKAGE_VERSION=$(grep '^version = ' pyproject.toml | cut -d'"' -f2)
-       IS_DISPATCHER="${{ steps.python_info.outputs.is_dispatcher }}"
-    
-       echo "📦 Package: $PACKAGE_NAME"
-       echo "🏷️  Version: $PACKAGE_VERSION"
-       echo "🎯 Dispatcher: $IS_DISPATCHER"
-    
-       if [ "$IS_DISPATCHER" == "true" ]; then
-         # Dispatcher package should be "filelock-lts"
-         if [ "$PACKAGE_NAME" != "filelock-lts" ]; then
+        PACKAGE_NAME=$(grep '^name = ' pyproject.toml | cut -d'"' -f2)
+        PACKAGE_VERSION=$(grep '^version = ' pyproject.toml | cut -d'"' -f2)
+        IS_DISPATCHER="${{ steps.python_info.outputs.is_dispatcher }}"
+        PY_VERSION="${{ steps.python_info.outputs.version }}"
+        
+        echo "📦 Package: $PACKAGE_NAME"
+        echo "🏷️  Version: $PACKAGE_VERSION"
+        
+        if [ "$IS_DISPATCHER" == "true" ]; then
+          if [ "$PACKAGE_NAME" != "filelock-lts" ]; then
             echo "::error::Expected 'filelock-lts', got '$PACKAGE_NAME'"
             exit 1
-         fi
-         echo "✅ Dispatcher package verified"
-       else
-         # Version-specific packages should be "filelock-lts-py37", etc.
-         PY_VERSION="${{ steps.python_info.outputs.version }}"
-         EXPECTED_NAME="filelock-lts-py${PY_VERSION//.}"
-      
-         if [ "$PACKAGE_NAME" != "$EXPECTED_NAME" ]; then
-           echo "::error::Expected '$EXPECTED_NAME', got '$PACKAGE_NAME'"
-           exit 1
-         fi
-         echo "✅ Python $PY_VERSION package verified"
-       fi
-    
-       # Summary
-       echo "### 📋 Build Configuration" >> $GITHUB_STEP_SUMMARY
-       echo "" >> $GITHUB_STEP_SUMMARY
-       if [ "$IS_DISPATCHER" == "true" ]; then
-         echo "- **Package**: filelock-lts (dispatcher)" >> $GITHUB_STEP_SUMMARY
-       else
-          echo "- **Package**: filelock-lts-py${{ steps.python_info.outputs.version }}" >> $GITHUB_STEP_SUMMARY
-       fi
-       echo "- **Version**: $PACKAGE_VERSION" >> $GITHUB_STEP_SUMMARY
-       echo "- **Python**: ${{ steps.python_info.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          fi
+        else
+          EXPECTED_NAME="filelock-lts-py${PY_VERSION//.}"
+          if [ "$PACKAGE_NAME" != "$EXPECTED_NAME" ]; then
+            echo "::error::Expected '$EXPECTED_NAME', got '$PACKAGE_NAME'"
+            exit 1
+          fi
+        fi
     
     - name: Build package
-      run: docker exec pybuilder python -m build --sdist --wheel
+      run: docker exec pybuilder python -m build
     
-    # --- THIS IS THE FIX ---
-    - name: Sanitize filenames for PyPI (PEP 625)
-      run: |
-        echo "🔍 Checking for hyphenated artifacts..."
-        cd dist
-        for f in *; do
-          # Replace all hyphens with underscores in the filename
-          # e.g., filelock-lts-py37 -> filelock_lts_py37
-          new_name="${f//-/_}"
-          if [ "$f" != "$new_name" ]; then
-            echo "✏️ Renaming: $f -> $new_name"
-            mv "$f" "$new_name"
-          fi
-        done
-        cd ..
-    # -----------------------
-
-    - name: Show build artifacts
+    - name: List artifacts
       run: ls -lh dist/
     
     - name: Cleanup Docker
       if: always()
-      continue-on-error: true
-      run: docker stop pybuilder && docker rm pybuilder
+      run: docker stop pybuilder && docker rm pybuilder || true
     
     - name: Publish to PyPI
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
         skip-existing: true
-    
-    - name: Build summary
-      run: |
-        IS_DISPATCHER="${{ steps.python_info.outputs.is_dispatcher }}"
-        PACKAGE_VERSION=$(grep '^version = ' pyproject.toml | cut -d'"' -f2)
-        
-        echo "### 🎉 Published to PyPI" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        
-        if [ "$IS_DISPATCHER" == "true" ]; then
-          echo "**Package:** filelock-lts (dispatcher)" >> $GITHUB_STEP_SUMMARY
-          echo "**Version:** $PACKAGE_VERSION" >> $GITHUB_STEP_SUMMARY
-          echo "**Type:** Auto-selects correct version for Python 3.7-3.14" >> $GITHUB_STEP_SUMMARY
-        else
-          echo "**Package:** filelock-lts-py${{ steps.python_info.outputs.version }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Version:** $PACKAGE_VERSION" >> $GITHUB_STEP_SUMMARY
-          echo "**Python:** ${{ steps.python_info.outputs.version }}" >> $GITHUB_STEP_SUMMARY
-        fi
