@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import os
 # SECURITY PATCH: CVE-2025-68146 applied
-# SECURITY PATCH: CVE-2025-68146 applied
 import sys
 from contextlib import suppress
 from errno import ENOSYS
