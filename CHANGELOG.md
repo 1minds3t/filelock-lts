@@ -9,28 +9,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 Security Update (CVE-2025-68146 & CVE-2026-22701)
 
-All notable changes to this project will be documented in this file.
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
+## 🛡️ Security Fixes
 
----
+This release addresses two Time-of-Check-Time-of-Use (TOCTOU) vulnerabilities involving symlink attacks, ensuring Python 3.7 environments remain secure.
 
-## [2026.22701] — 2026-02-26
+*   **Unix/Linux/macOS:** Added `os.O_NOFOLLOW` to `os.open` flags in `UnixFileLock`. The kernel will now refuse to open the lock file if it is a symbolic link, preventing attackers from redirecting the lock creation to arbitrary files.
+*   **Windows:** Added explicit reparse point detection in `WindowsFileLock`. Uses `GetFileAttributesW` to verify the target is not a symbolic link or junction before acquisition.
 
-- **CVE-2026-22701** (MODERATE) — TOCTOU symlink attack in `SoftFileLock`
-  ([GHSA-qmgc-5h2g-mvrw](https://github.com/advisories/GHSA-qmgc-5h2g-mvrw),
-  [CVE](https://www.cve.org/CVERecord?id=CVE-2026-22701))
-  Upstream fixed in filelock 3.20.3. Our CVE-2025-68146 backport had already
-  applied the identical fix to `_soft.py`, so no additional code change was
-  required. This release formally tracks coverage of the CVE and updates the
-  version accordingly.
+*   **All Platforms:** Added `os.O_NOFOLLOW` (via `getattr` for compatibility) to `SoftFileLock`. This prevents similar race conditions where the soft lock file could be replaced with a symlink.
 
-- Removed ghost `src/filelock_lts_py37/` directory that had re-appeared from
-  a patcher restore operation
-- Cleaned up `patched/` staging directory left by failed patch attempt
-- Fixed duplicate `# SECURITY PATCH` comment in `_unix.py`
-- Added `patched/` and `licenses/` to `.gitignore`
-- Added comprehensive security regression tests for CVE-2026-22701
-  (`tests/security/test_cve_2026_22701.py`)
+## 🧹 Maintenance
+*   Added comprehensive security regression tests in `tests/security/`.
+*   Cleaned up redundant source directories and build artifacts.
+*   Updated project metadata and documentation.
 
 ---
 
