@@ -1,4 +1,4 @@
-# Filelock LTS (py3.13) - ➡️ REDIRECT
+# Filelock LTS (lts-py313) - ➡️ REDIRECT
 
 
 > **⚠️ Disclaimer:** This project is **not affiliated with, endorsed by, or associated with** the official `filelock` maintainers. All patches and releases are independently maintained and provided on a best-effort basis to support legacy environments.
@@ -23,7 +23,7 @@ Since Python 3.13 is supported by the official upstream maintainers, this LTS pa
 Installing this package automatically installs the official `filelock >= 3.20.1`, which contains the official fix for CVE-2025-68146.
 
 ```bash
-pip install filelock-lts-py3.13
+pip install filelock-lts-lts-py313
 ```
 
 ### Why use this?
