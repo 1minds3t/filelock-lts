@@ -1,4 +1,4 @@
-# Filelock LTS (py3.8) - 🛡️ PATCHED (Backport)
+# Filelock LTS (lts-py38) - 🛡️ PATCHED (Backport)
 
 
 > **⚠️ Disclaimer:** This project is **not affiliated with, endorsed by, or associated with** the official `filelock` maintainers. All patches and releases are independently maintained and provided on a best-effort basis to support legacy environments.
@@ -28,7 +28,7 @@ While upstream `filelock` patched this issue in versions requiring Python 3.10+,
 This package is a **drop-in replacement**. It contains the original source code of `filelock 3.16.1` but applies the specific security patches manually to both Unix and Windows drivers.
 
 ```bash
-pip install filelock-lts-py3.8==2025.68146
+pip install filelock-lts-lts-py38==2025.68146
 ```
 
 ## ⚙️ Technical Details
