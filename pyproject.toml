@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "filelock-lts-py39"
-version = "2025.68146.2"
-description = "Python 3.9 compatible filelock with CVE-2025-68146 patch"
+version = "2026.22701"
+description = "Python 3.9 filelock with CVE-2025-68146 and CVE-2026-22701 security patches (symlink/TOCTOU attack prevention via O_NOFOLLOW)"
 requires-python = ">=3.9, <3.10"
 license = {text = "Unlicense"}
 readme = "README.md"
