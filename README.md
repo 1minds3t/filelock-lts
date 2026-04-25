@@ -4,11 +4,11 @@
 > **⚠️ Disclaimer:** This project is **not affiliated with, endorsed by, or associated with** the official `filelock` maintainers. All patches and releases are independently maintained and provided on a best-effort basis to support legacy environments.
 
 
-![Security Patched](https://img.shields.io/badge/Security-Patched-success) ![CVE-2025-68146 Fixed](https://img.shields.io/badge/CVE--2025--68146-Fixed-blue) ![CVE-2026-22701 Fixed](https://img.shields.io/badge/CVE--2026--22701-Fixed-blue)
+![alt text](https://img.shields.io/badge/Security-Patched-success) ![alt text](https://img.shields.io/badge/CVE-2025--68146-Fixed-blue)
 
 A unified security ecosystem ensuring filelock safety across ALL Python versions (3.7 - 3.14).
 
-## 🚨 The Vulnerability: CVE-2025-68146 and CVE-2026-22701
+## 🚨 The Vulnerability: CVE-2025-68146
 A critical Time-of-Check-Time-of-Use (TOCTOU) race condition allows local attackers to truncate or corrupt sensitive files via symlink or junction attacks.
 
 ## 🛡️ The Solution
@@ -16,9 +16,9 @@ This repository acts as a smart dispatcher. Installing `filelock-lts` automatica
 
 | Python Version | Strategy | Base Version | Status |
 |:---|:---|:---|:---|
-| 3.7 | Custom Backport | 3.12.2 | 🛡️ CVE-2025-68146 + CVE-2026-22701 |
-| 3.8 | Custom Backport | 3.16.1 | 🛡️ CVE-2025-68146 + CVE-2026-22701 |
-| 3.9 | Custom Backport | 3.19.1 | 🛡️ CVE-2025-68146 + CVE-2026-22701 |
+| 3.7 | Custom Backport | 3.12.2 | 🛡️ SECURED (Unix + Win32) |
+| 3.8 | Custom Backport | 3.16.1 | 🛡️ SECURED (Unix + Win32) |
+| 3.9 | Custom Backport | 3.19.1 | 🛡️ SECURED (Unix + Win32) |
 | 3.10+ | Upstream Proxy | Official >= 3.20.1 | ✅ REDIRECTED |
 
 ## 📦 Installation
