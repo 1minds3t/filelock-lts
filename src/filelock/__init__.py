@@ -13,9 +13,6 @@ import warnings
 from typing import TYPE_CHECKING
 
 
-
-
-
 def _check_clobber():
     """
     Verify that CVE-patched files have not been silently overwritten after
@@ -69,7 +66,7 @@ def _check_clobber():
         upstream_version = None
         for dist in _md.distributions():
             raw = (dist.metadata.get("Name", "") or "").lower().replace("-", "_")
-            if raw in _lts_normalized:
+            if raw in _lts_normalized and our_dist is None:
                 our_dist = dist
             elif raw == "filelock":
                 upstream_version = dist.metadata.get("Version", "unknown")
@@ -77,6 +74,9 @@ def _check_clobber():
                 break
 
         # ── Layer 1: RECORD-based integrity ──────────────────────────────────
+        if our_dist is None:
+            compromised.append("filelock-lts distribution not found (environment inconsistency — bubble isolation may be hiding it)")
+
         if our_dist is not None:
             record_text = our_dist.read_text("RECORD")
             if not record_text:
@@ -159,8 +159,6 @@ def _check_clobber():
 
 
 _check_clobber()
-
-
 
 
 from ._api import AcquireReturnProxy, BaseFileLock
