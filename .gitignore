@@ -16,3 +16,10 @@ venv*
 .python-version
 test.lock
 test.softlock
+
+# gitship internal state (auto-added by gitship)
+.gitship/
+
+# gitship diff exports (auto-added by gitship)
+gitship_exports/
+build-scripts/
