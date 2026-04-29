@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "filelock_lts_py37"
-version = "2026.22701"
+version = "2026.22701.post1"
 description = "Python 3.7 filelock with CVE-2025-68146 and CVE-2026-22701 security patches (TOCTOU symlink attack prevention)"
 requires-python = ">=3.7, <3.8"
 license = {text = "Unlicense"}

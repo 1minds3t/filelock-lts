@@ -5,6 +5,51 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2026.22701.post1] — 2026-04-29
+
+runtime integrity hardeningAdds runtime clobber detection to guard against pip dependency resolution
+
+Adds runtime clobber detection to guard against pip dependency resolution
+silently overwriting CVE-patched files after install.
+
+## What's new
+
+_check_clobber() now runs two detection layers on every import:
+
+1. RECORD-based integrity (primary): verifies _unix.py, _windows.py, and
+   _soft.py against the SHA256 hashes pip recorded at install time. Catches
+   silent overwrites regardless of whether upstream dist-info is present.
+
+2. Co-install detection (secondary): warns if a bare `filelock` dist is found
+   alongside this package — belt-and-suspenders signal for environments where
+   the hash check alone may not surface the issue.
+
+Additional hardening:
+- Guard against repeated execution across daemon reexec, hot-reload, and
+  re-import paths (_check_clobber_done flag)
+- Surfaces missing dist as a compromised entry rather than silently skipping
+  the integrity check (relevant in bubble-isolated environments)
+- pyproject.toml: requires pip>=24.1, conflicts upstream filelock to prevent
+  co-installation at resolve time
+
+## Affected CVEs
+
+CVE-2025-68146, CVE-2026-22701
+
+## Upgrade
+
+pip install --force-reinstall filelock_lts_py37
+
+---
+
+**⚙️ Configuration:**
+- pyproject.toml (11 lines)
+
+**Updates:**
+- Update publish workflow for Python 3.12 support
+
+_6 files changed, 444 insertions(+), 94 deletions(-)_
+
 ## [2026.22701.1] — 2026-04-29
 
 runtime integrity hardening
