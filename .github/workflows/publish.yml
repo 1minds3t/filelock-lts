@@ -105,14 +105,17 @@ jobs:
         echo "📦 Package: $PACKAGE_NAME"
         echo "🏷️  Version: $PACKAGE_VERSION"
         
+        # Normalize: PyPI treats hyphens and underscores as equivalent
+        NORMALIZED_NAME="${PACKAGE_NAME//_/-}"
+        
         if [ "$IS_DISPATCHER" == "true" ]; then
-          if [ "$PACKAGE_NAME" != "filelock-lts" ]; then
+          if [ "$NORMALIZED_NAME" != "filelock-lts" ]; then
             echo "::error::Expected 'filelock-lts', got '$PACKAGE_NAME'"
             exit 1
           fi
         else
           EXPECTED_NAME="filelock-lts-py${PY_VERSION//.}"
-          if [ "$PACKAGE_NAME" != "$EXPECTED_NAME" ]; then
+          if [ "$NORMALIZED_NAME" != "$EXPECTED_NAME" ]; then
             echo "::error::Expected '$EXPECTED_NAME', got '$PACKAGE_NAME'"
             exit 1
           fi
