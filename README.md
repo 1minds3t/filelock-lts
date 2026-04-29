@@ -8,9 +8,9 @@
 | **Metric**     | **Details**                                                              |
 |:---------------|:-------------------------------------------------------------------------|
 | **CVEs Fixed** | CVE-2025-68146 (HIGH) · CVE-2026-22701 (MODERATE)                       |
-| **Version**    | `2026.22701`                                                               |
+| **Version**    | `2026.22701.1`                                                               |
 | **Base**       | `filelock 3.12.2` (upstream tag for Python 3.7)                     |
-| **Python**     | `3.7` only (`>=3.7, <3.8`) |
+| **Python**     | `3.7` only (`>=3.7, <3.8`)                              |
 | **License**    | Unlicense (Public Domain)                                                |
 
 ---
@@ -25,12 +25,41 @@ This package backports the complete fix to Python 3.7.
 
 ---
 
+## 🔒 Defense-in-Depth
+
+This package uses three hardening layers to protect patched files from being
+silently overwritten by pip's flat install model:
+
+1. **Install-time prevention** — `[conflicts]` table in `pyproject.toml` signals
+   incompatibility with upstream `filelock` to resolvers that support it.
+   Enforced by pip ≥ 24.1 during dependency resolution; older pip versions
+   will ignore this field silently.
+
+2. **Runtime integrity check** — `_check_clobber()` runs at import time using
+   two detection layers:
+   - **RECORD-based SHA256 verification** (primary): reads pip's own
+     `dist-info/RECORD` and verifies `_unix.py`, `_windows.py`, and `_soft.py`
+     on disk still match the hashes recorded at install time. Catches silent
+     overwrites even when no upstream dist-info is present.
+   - **Co-install detection** (secondary): scans installed distributions for a
+     bare `filelock` dist alongside this package.
+   Detection is non-fatal — failures in the check will not interrupt imports.
+
+3. **Documentation** — install-order warnings, safe workflow guidance, and
+   verification steps below.
+
+> **Note:** These layers reduce risk but cannot fully prevent file overwrites
+> within pip's install model. Always verify patch integrity after installing
+> new packages in the same environment. See [Verifying Patch Integrity](#-verifying-patch-integrity) below.
+
+---
+
 ## 📦 Installation
 
 ### Fresh install (no existing `filelock`)
 
 ```bash
-pip install filelock-lts-py37==2026.22701
+pip install filelock-lts-py37==2026.22701.1
 ```
 
 ### If `filelock` is already installed — do this in order
@@ -40,17 +69,16 @@ pip install filelock-lts-py37==2026.22701
 pip uninstall filelock -y
 
 # 2. Install the patched version
-pip install filelock-lts-py37==2026.22701
+pip install filelock-lts-py37==2026.22701.1
 
-# 3. Verify the patch is active
-python -c "import filelock; print(filelock.__version__)"
-pip show filelock filelock-lts-py37
+# 3. Verify patch integrity (see section below)
 ```
 
 > **Why the order matters:** Both packages install into the `filelock/` namespace
 > in `site-packages`. Whichever is installed **last** owns the files. If upstream
 > `filelock` is installed after this package, it silently overwrites the patched
-> `_unix.py` and `_windows.py`, reintroducing the CVEs.
+> `_unix.py`, `_windows.py`, and `_soft.py`, reintroducing the CVEs with no
+> error or warning from pip.
 
 ---
 
@@ -58,19 +86,21 @@ pip show filelock filelock-lts-py37
 
 ### The clobber risk
 
-Any tool that declares `Requires: filelock` (without a version pin) will cause pip
+Any tool that declares `Requires: filelock` (without a version pin) may cause pip
 to install upstream `filelock` when that tool is installed, **overwriting your
-patched files**.
-
-This package emits a `RuntimeWarning` at import time if it detects upstream
-`filelock` is present alongside it — but detection happens after the damage is done.
+patched files**. This happens silently — pip does not warn when one package's
+files are overwritten by another.
 
 ### Safe workflow
 
 ```bash
-# After installing ANY new package, verify protection is intact:
+# After installing ANY new package into this environment, verify protection:
+python -c "import filelock"
+# If patched files were overwritten, you will see a RuntimeWarning.
+
+# Or check which dist owns the filelock namespace:
 pip show filelock
-# Should show NO result, or only show filelock-lts / filelock-lts-py37
+# Should show NO result, or only show filelock-lts-py37
 
 # If upstream filelock crept back in:
 pip uninstall filelock -y
@@ -81,8 +111,8 @@ pip install --force-reinstall filelock-lts-py37
 
 ```
 # requirements.txt — pin explicitly to block pip from pulling upstream
-filelock-lts-py37==2026.22701
-# Do NOT also list 'filelock' — that will pull in upstream
+filelock-lts-py37==2026.22701.1
+# Do NOT also list 'filelock' — that will pull in the unpatched upstream
 ```
 
 ### Pinning in pyproject.toml
@@ -90,29 +120,92 @@ filelock-lts-py37==2026.22701
 ```toml
 [project]
 dependencies = [
-    "filelock-lts-py37==2026.22701",
+    "filelock-lts-py37==2026.22701.1",
     # Do NOT add 'filelock' here — it will clobber the patched version
 ]
 ```
 
 ---
 
-## ✅ Verifying the Patch Is Active
+## ✅ Verifying Patch Integrity
+
+### Quick check — dist ownership
 
 ```bash
-# Check which dist owns the filelock namespace
 python -c "
 import importlib.metadata as m
 for d in m.distributions():
-    name = d.metadata.get('Name','')
+    name = d.metadata.get('Name', '')
     if 'filelock' in name.lower():
-        print(name, d.metadata.get('Version',''))
+        print(name, d.metadata.get('Version', ''))
 "
-# Expected output:
-#   filelock-lts             2026.22701
-#   filelock-lts-py37  2026.22701
-#
-# If you see bare 'filelock  3.x.x' — upstream has clobbered your install.
+# Expected: only 'filelock-lts-py37  2026.22701.1'
+# If you see bare 'filelock  3.x.x' — upstream has been installed and may
+# have overwritten the patched files.
+```
+
+### Full integrity check — SHA256 against RECORD
+
+This verifies the actual patched files on disk match the hashes pip recorded
+at install time. This is the same check `_check_clobber()` performs at import.
+
+```bash
+python -c "
+import importlib.metadata as m, hashlib, base64, pathlib
+
+LTS_NAMES = {
+    'filelock_lts_py37', 'filelock_lts',
+    'filelock-lts-py37', 'filelock-lts',
+}
+PATCHED = {'_unix.py', '_windows.py', '_soft.py'}
+
+our_dist = None
+for d in m.distributions():
+    norm = (d.metadata.get('Name', '') or '').lower().replace('-', '_')
+    if norm in LTS_NAMES:
+        our_dist = d
+        break
+
+if our_dist is None:
+    print('ERROR: filelock-lts-py37 dist-info not found')
+    raise SystemExit(1)
+
+import filelock as fl
+pkg_dir = pathlib.Path(fl.__file__).parent
+record = our_dist.read_text('RECORD')
+ok, failed = [], []
+
+for line in record.splitlines():
+    parts = line.split(',')
+    if len(parts) < 2:
+        continue
+    filename = pathlib.Path(parts[0].strip()).name
+    recorded = parts[1].strip()
+    if filename not in PATCHED or not recorded.startswith('sha256:'):
+        continue
+    actual = pkg_dir / filename
+    if not actual.exists():
+        failed.append(f'{filename}: MISSING')
+        continue
+    digest = base64.urlsafe_b64encode(
+        hashlib.sha256(actual.read_bytes()).digest()
+    ).rstrip(b'=').decode()
+    if digest == recorded[7:]:
+        ok.append(filename)
+    else:
+        failed.append(f'{filename}: HASH MISMATCH')
+
+for f in ok:
+    print(f'  ✅ {f}')
+for f in failed:
+    print(f'  ❌ {f}')
+
+if failed:
+    print('\nPatch integrity FAILED — reinstall filelock-lts-py37')
+    raise SystemExit(1)
+else:
+    print('\nAll patched files verified against RECORD.')
+"
 ```
 
 ---
@@ -149,5 +242,5 @@ Patch files and upstream diff analysis:
 
 > **Note for package maintainers:** If your package targets Python 3.7 and
 > currently lists `filelock` as a dependency, consider switching to
-> `filelock-lts-py37>=2026.22701` to ensure your users receive the patched version.
+> `filelock-lts-py37>=2026.22701.1` to ensure your users receive the patched version.
 > The import API is 100% compatible — no code changes required.
