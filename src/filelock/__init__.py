@@ -16,6 +16,9 @@ from typing import TYPE_CHECKING
 _check_clobber_done = False
 
 
+_check_clobber_done = False
+
+
 def _check_clobber():
     """
     Verify that CVE-patched files have not been silently overwritten after
