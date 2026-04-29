@@ -1,5 +1,7 @@
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = ["setuptools>=61.0",
+    "pip>=24.1"
+]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -19,3 +21,6 @@ classifiers = [
 Homepage = "https://github.com/1minds3t/filelock-lts"
 "CVE Details" = "https://nvd.nist.gov/vuln/detail/CVE-2025-68146"
 "Source" = "https://github.com/1minds3t/filelock-lts/tree/py3.8"
+
+[conflicts]
+filelock = "*"
