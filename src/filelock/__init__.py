@@ -30,6 +30,7 @@ from typing import TYPE_CHECKING
 
 
 
+
 def _check_clobber():
     """
     Verify that CVE-patched files have not been silently overwritten after
@@ -173,6 +174,7 @@ def _check_clobber():
 
 
 _check_clobber()
+
 
 
 
