@@ -28,6 +28,72 @@ import sys
 import warnings
 from typing import TYPE_CHECKING
 
+
+def _check_clobber():
+    """
+    Detect whether upstream 'filelock' has been installed alongside this package
+    and clobbered our patched files.
+
+    This can happen silently when any tool with `Requires: filelock` is installed
+    after filelock-lts-py37, causing pip to overwrite _unix.py / _windows.py with
+    the unpatched upstream versions, reintroducing CVE-2025-68146 / CVE-2026-22701.
+
+    Detection strategy: check importlib.metadata for a 'filelock' dist-info that
+    is NOT one of our lts packages. If found, the import namespace is compromised.
+    """
+    try:
+        # importlib.metadata is stdlib on 3.8+; on 3.7 it requires the backport
+        try:
+            import importlib.metadata as _md
+        except ImportError:
+            import importlib_metadata as _md  # type: ignore[no-redef]
+
+        LTS_NAMES = {
+            "filelock-lts",
+            "filelock-lts-py37",
+            "filelock-lts-py38",
+            "filelock-lts-py39",
+            "filelock_lts",
+            "filelock_lts_py37",
+            "filelock_lts_py38",
+            "filelock_lts_py39",
+        }
+
+        for dist in _md.distributions():
+            name = dist.metadata.get("Name", "")
+            if name and name.lower() == "filelock" and name not in LTS_NAMES:
+                version = dist.metadata.get("Version", "unknown")
+                warnings.warn(
+                    f"\n\n"
+                    f"  *** SECURITY WARNING: filelock-lts-py37 may be compromised ***\n"
+                    f"\n"
+                    f"  Upstream 'filelock=={version}' is installed alongside this package.\n"
+                    f"  If it was installed AFTER filelock-lts-py37, it has overwritten the\n"
+                    f"  patched _unix.py/_windows.py with unpatched versions, reintroducing:\n"
+                    f"\n"
+                    f"    CVE-2025-68146 (HIGH)    — TOCTOU symlink attack\n"
+                    f"    CVE-2026-22701 (MODERATE) — TOCTOU symlink attack in SoftFileLock\n"
+                    f"\n"
+                    f"  To restore protection:\n"
+                    f"    pip uninstall filelock\n"
+                    f"    pip install --force-reinstall filelock-lts-py37\n"
+                    f"\n"
+                    f"  To verify patch is active after reinstall:\n"
+                    f"    python -c \"import filelock._unix; import hashlib, inspect\"\n"
+                    f"    # and check against: https://github.com/1minds3t/filelock-lts/tree/lts-py37/security\n",
+                    stacklevel=2,
+                    category=RuntimeWarning,
+                )
+                break
+
+    except Exception:
+        # Never crash the import over a metadata check
+        pass
+
+
+_check_clobber()
+
+
 from ._api import AcquireReturnProxy, BaseFileLock
 from ._error import Timeout
 from ._soft import SoftFileLock

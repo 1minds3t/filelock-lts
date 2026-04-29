@@ -83,3 +83,4 @@ wheels/
 # Auto-generated license files
 licenses/
 patched/
+build-scripts/
