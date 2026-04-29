@@ -37,12 +37,12 @@ jobs:
           INPUT="${{ github.event.inputs.python_version }}"
           if [ "$INPUT" == "dispatcher" ]; then
             PY_VERSION="3.9"
-            BRANCH="main"
+            BRANCH="lts-dispatcher"
             IS_DISPATCHER="true"
-            echo "📦 Manual: Building dispatcher from main"
+            echo "📦 Manual: Building dispatcher from lts-dispatcher"
           else
             PY_VERSION="$INPUT"
-            BRANCH="py${PY_VERSION}"
+            BRANCH="lts-py${PY_VERSION//.}"
             IS_DISPATCHER="false"
             echo "📦 Manual: Building Python $PY_VERSION from $BRANCH"
           fi
@@ -52,18 +52,18 @@ jobs:
           
           if [[ "$TAG_NAME" =~ ^CVE-[0-9]+-[0-9]+(\.[0-9]+)?$ ]]; then
             PY_VERSION="3.9"
-            BRANCH="main"
+            BRANCH="lts-dispatcher"
             IS_DISPATCHER="true"
-            echo "📦 Dispatcher release from main"
+            echo "📦 Dispatcher release from lts-dispatcher"
           elif [[ "$TAG_NAME" =~ -py([0-9])([0-9]+)$ ]]; then
             PY_VERSION="${BASH_REMATCH[1]}.${BASH_REMATCH[2]}"
-            BRANCH="py${PY_VERSION}"
+            BRANCH="lts-py${BASH_REMATCH[1]}${BASH_REMATCH[2]}"
             IS_DISPATCHER="false"
             echo "📦 Python $PY_VERSION release from $BRANCH"
           elif [[ "$TAG_NAME" =~ -py([0-9]+)$ ]]; then
             PY_NUM="${BASH_REMATCH[1]}"
             PY_VERSION="${PY_NUM:0:1}.${PY_NUM:1}"
-            BRANCH="py${PY_VERSION}"
+            BRANCH="lts-py${PY_NUM}"
             IS_DISPATCHER="false"
             echo "📦 Python $PY_VERSION release from $BRANCH"
           else
