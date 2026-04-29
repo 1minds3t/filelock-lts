@@ -29,6 +29,9 @@ import warnings
 from typing import TYPE_CHECKING
 
 
+_check_clobber_done = False
+
+
 def _check_clobber():
     """
     Verify that CVE-patched files have not been silently overwritten after
@@ -50,7 +53,12 @@ def _check_clobber():
        identical bytes, which is unlikely but possible in edge cases).
 
     Detection is non-fatal — failures in this check will not interrupt imports.
+    Guard against repeated execution (daemon reexec, hot-reload, re-import).
     """
+    global _check_clobber_done
+    if _check_clobber_done:
+        return
+    _check_clobber_done = True
     try:
         try:
             import importlib.metadata as _md
