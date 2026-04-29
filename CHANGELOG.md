@@ -5,6 +5,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2026.22701.1] — 2026-04-29
+
+Clobber detection, install-order protection & packaging hardening
+
+**Updates:**
+- Update publish workflow for Python 3.12 support
+
+**Other Changes:**
+- security(lts-py37): inject _check_clobber, add build-scripts to .gitignore
+- docs: clear install order warning and clobber protection guidance
+- fix(pyproject): underscore name, require pip>=24.1, conflict upstream filelock
+- fix(pyproject): use underscored name for PyPI sdist compatibility
+- Docs: Correctly describe full Unix+Windows security patch
+
+_5 files changed, 214 insertions(+), 98 deletions(-)_
+
 ## [2026.22701] — 2026-02-26
 
 Security Update (CVE-2025-68146 & CVE-2026-22701)
